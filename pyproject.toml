@@ -1,0 +1,93 @@
+[project]
+name = "wavefunction_branching"
+version = "0.1.0"
+description = "A package for identifying non-interfering decompositions of Matrix Product State wavefunctions, and then continuing time-evolution after sampling from the branches"
+requires-python = ">=3.11"
+readme = "README.md"
+dependencies = [
+    "torch",
+    "quimb",
+    "numpy",
+    "pandas",
+    "seaborn",
+    "matplotlib",
+    "scipy",
+    "opt_einops@git+https://github.com/jordansauce/opt_einops",
+    "pathlib",
+    "physics-tenpy",
+    "fire",
+    "datetime",
+    "QGOpt",
+    "jaxtyping",
+    "scikit-learn",
+    "natsort",
+    "wandb",
+    "tensorly",
+]
+
+[project.urls]
+repository = "https://github.com/jordansauce/wavefunction_branching"
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pyright",
+    "pre-commit",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["wavefunction_branching"]
+
+[tool.ruff]
+line-length = 100
+fix = true
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    "I",
+]
+
+[tool.ruff.format]
+# Enable reformatting of code snippets in docstrings.
+docstring-code-format = true
+
+[tool.ruff.lint.isort]
+known-third-party = ["wandb"]
+
+[tool.pyright]
+include = ["wavefunction_branching", "tests"]
+
+strictListInference = true
+strictDictionaryInference = true
+strictSetInference = true
+reportFunctionMemberAccess = true
+reportUnknownParameterType = true
+reportIncompatibleMethodOverride = true
+reportIncompatibleVariableOverride = true
+reportInconsistentConstructorType = true
+reportOverlappingOverload = true
+reportConstantRedefinition = true
+reportImportCycles = true
+reportPropertyTypeMismatch = true
+reportMissingTypeArgument = true
+reportUnnecessaryCast = true
+reportUnnecessaryComparison = true
+reportUnnecessaryContains = true
+reportUnusedExpression = true
+reportMatchNotExhaustive = true
+reportShadowedImports = true
+reportPrivateImportUsage = false
