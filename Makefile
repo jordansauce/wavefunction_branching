@@ -7,9 +7,9 @@ install-dev:
 	pip install -e .[dev]
 	pre-commit install
 
-# .PHONY: type
-# type:
-# 	SKIP=no-commit-to-branch pre-commit run -a pyright
+.PHONY: type
+type:
+	SKIP=no-commit-to-branch pre-commit run -a pyright
 
 .PHONY: format
 format:

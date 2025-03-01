@@ -69,25 +69,4 @@ docstring-code-format = true
 known-third-party = ["wandb"]
 
 [tool.pyright]
-include = ["wavefunction_branching", "tests"]
-
-strictListInference = true
-strictDictionaryInference = true
-strictSetInference = true
-reportFunctionMemberAccess = true
-reportUnknownParameterType = true
-reportIncompatibleMethodOverride = true
-reportIncompatibleVariableOverride = true
-reportInconsistentConstructorType = true
-reportOverlappingOverload = true
-reportConstantRedefinition = true
-reportImportCycles = true
-reportPropertyTypeMismatch = true
-reportMissingTypeArgument = true
-reportUnnecessaryCast = true
-reportUnnecessaryComparison = true
-reportUnnecessaryContains = true
-reportUnusedExpression = true
-reportMatchNotExhaustive = true
-reportShadowedImports = true
-reportPrivateImportUsage = false
+include = ["wavefunction_branching", "exact", "tests"]

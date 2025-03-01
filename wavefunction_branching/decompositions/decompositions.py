@@ -10,11 +10,12 @@ from tenpy.networks.mps import MPS
 
 import wavefunction_branching.decompositions.bell_different_blocks as bell_different_blocks
 import wavefunction_branching.decompositions.bell_identical_blocks as bell_identical_blocks
-import wavefunction_branching.decompositions.block_diagonal.iterative_micro_bsvd as iterative_micro_bsvd
-import wavefunction_branching.decompositions.block_diagonal.iterative_pulling_through as iterative_pulling_through
-import wavefunction_branching.decompositions.bmm_2svals_rho_half as bmm_2svals_rho_half
-import wavefunction_branching.decompositions.graddesc_torch as graddesc_torch  # optimize(tensors_orig, tensors_a, tensors_b) -> tensors_a, tensors_b, dict
-import wavefunction_branching.decompositions.utils as utils
+
+# import wavefunction_branching.decompositions.bmm_2svals_rho_half as bmm_2svals_rho_half
+import wavefunction_branching.decompositions.graddesc_global as graddesc_global  # optimize(tensors_orig, tensors_a, tensors_b) -> tensors_a, tensors_b, dict
+import wavefunction_branching.decompositions.pulling_through as pulling_through
+import wavefunction_branching.decompositions.vertical_svd as vertical_svd
+import wavefunction_branching.utils.tensors as utils
 from wavefunction_branching.types import (
     BlockDiagTensor,
     LeftSplittingTensor,
@@ -89,7 +90,7 @@ def make_S_square(
 def bell_decomp_iterative_discard_classical(
     As: MatrixStack, n_steps=500
 ) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor]:
-    tensor = utils.make_square(As, xFast=2)
+    tensor = utils.make_square(As, 2)
     L, S, R, info = bell_identical_blocks.combined_optimization(
         tensor,
         n_attempts_iterative=1,
@@ -107,7 +108,7 @@ def bell_decomp_iterative_discard_classical(
 def bell_decomp_iterative_keep_classical(
     As: MatrixStack, n_steps=500
 ) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor]:
-    tensor = utils.make_square(As, xFast=2)
+    tensor = utils.make_square(As, 2)
     L, S, R, info = bell_identical_blocks.combined_optimization(
         tensor,
         n_attempts_iterative=1,
@@ -125,7 +126,7 @@ def bell_decomp_iterative_keep_classical(
 def iterative_svd_micro_bsvd(
     As: MatrixStack, n_steps=500
 ) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor]:
-    L, M, R = iterative_micro_bsvd.block_svd(As, n_iters=n_steps, initialize="bsvd", tolerance=0)
+    L, M, R = vertical_svd.block_svd(As, n_iters=n_steps, initialize="bsvd", tolerance=0)
     # U_purified.shape =                     branch, L, l
     # blockdiag_purified.shape = branch, n_matrices, l, r
     # Vh_purified.shape =                    branch, r, R
@@ -139,8 +140,8 @@ def iterative_svd_micro_bsvd(
 def iterative_pulling_through_z0_dim_half(
     As: MatrixStack, n_steps=500
 ) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor]:
-    # return iterative_pulling_through.to_purification(As, svals_power = 0.0, equal_sized_blocks=True, verbose=False)
-    kraus_L, kraus_R = iterative_pulling_through.find_simultaneous_kraus_operators(
+    # return pulling_through.to_purification(As, svals_power = 0.0, equal_sized_blocks=True, verbose=False)
+    kraus_L, kraus_R = pulling_through.find_simultaneous_kraus_operators(
         As, svals_power=0.0, max_iters=n_steps
     )
     # LPurifiedType = Complex[np.ndarray, "n_blocks dim_L dim_l"]
@@ -149,9 +150,7 @@ def iterative_pulling_through_z0_dim_half(
     # LeftSplittingTensor =       Complex[np.ndarray, "nBranches dVirt dSlow"]
     # BlockDiagTensor =           Complex[np.ndarray, "dPhys nBranches dSlow dSlow"]
     # RightSplittingTensor =      Complex[np.ndarray, "nBranches dSlow dVirt"]
-    L, M, R = iterative_pulling_through.kraus_operators_to_LMR(
-        As, kraus_L, kraus_R, equal_sized_blocks=True
-    )
+    L, M, R = pulling_through.kraus_operators_to_LMR(As, kraus_L, kraus_R, equal_sized_blocks=True)
     S = rearrange(M, "b p l r -> p b l r")
     return make_S_square(L, S, R)
 
@@ -201,16 +200,16 @@ def rho_LM_MR_trace_norm(
     return LSR_to_purification(L, S, R)
 
 
-def rho_half_LM_MR_trace_norm(  # aka graddesc_reconstruction_2svals_rho_half
-    As: MatrixStack,
-    L: LeftSplittingTensor,
-    S: BlockDiagTensor,
-    R: RightSplittingTensor,
-    n_steps=1000,
-) -> PurificationMatrixStack:
-    L, S, R = bmm_2svals_rho_half.heuristic_optimization_LSR(As, L, S, R, maxiter=n_steps)
-    assert len(S.shape) == 4  # dPhys, nBranches, dSlow, dSlow
-    return LSR_to_purification(L, S, R)
+# def rho_half_LM_MR_trace_norm(  # aka graddesc_reconstruction_2svals_rho_half
+#     As: MatrixStack,
+#     L: LeftSplittingTensor,
+#     S: BlockDiagTensor,
+#     R: RightSplittingTensor,
+#     n_steps=1000,
+# ) -> PurificationMatrixStack:
+#     L, S, R = bmm_2svals_rho_half.heuristic_optimization_LSR(As, L, S, R, maxiter=n_steps)
+#     assert len(S.shape) == 4  # dPhys, nBranches, dSlow, dSlow
+#     return LSR_to_purification(L, S, R)
 
 
 def graddesc_global_reconstruction_non_interfering(  # aka graddesc_non_interfering_local_reconstruction
@@ -224,7 +223,7 @@ def graddesc_global_reconstruction_non_interfering(  # aka graddesc_non_interfer
     tensors_a = [L[0:1], S[:, 0], R[0:1]]
     tensors_b = [L[1:], S[:, 1], R[1:]]
 
-    tensors_a, tensors_b, info = graddesc_torch.optimize(
+    tensors_a, tensors_b, info = graddesc_global.optimize(
         tensors_orig,
         tensors_a,
         tensors_b,
@@ -232,8 +231,8 @@ def graddesc_global_reconstruction_non_interfering(  # aka graddesc_non_interfer
         epochs=n_steps // 50,
         steps_per_epoch=50,
     )
-    theta_a = graddesc_torch.contract_theta(tensors_a)
-    theta_b = graddesc_torch.contract_theta(tensors_b)
+    theta_a = graddesc_global.contract_theta(tensors_a)
+    theta_b = graddesc_global.contract_theta(tensors_b)
     return np.stack([theta_a, theta_b], axis=0)
 
 
@@ -244,11 +243,11 @@ def graddesc_global_reconstruction_split_non_interfering(  # aka graddesc_non_in
     R: RightSplittingTensor,
     n_steps=1000,
 ) -> PurificationMatrixStack:
-    tensors_orig = graddesc_torch.split(As)
-    tensors_a = [L[0:1], *graddesc_torch.split(S[:, 0]), R[0:1]]
-    tensors_b = [L[1:], *graddesc_torch.split(S[:, 1]), R[1:]]
+    tensors_orig = graddesc_global.split(As)
+    tensors_a = [L[0:1], *graddesc_global.split(S[:, 0]), R[0:1]]
+    tensors_b = [L[1:], *graddesc_global.split(S[:, 1]), R[1:]]
 
-    tensors_a, tensors_b, info = graddesc_torch.optimize(
+    tensors_a, tensors_b, info = graddesc_global.optimize(
         tensors_orig,
         tensors_a,
         tensors_b,
@@ -256,8 +255,8 @@ def graddesc_global_reconstruction_split_non_interfering(  # aka graddesc_non_in
         epochs=n_steps // 50,
         steps_per_epoch=50,
     )
-    theta_a = graddesc_torch.contract_theta(tensors_a)
-    theta_b = graddesc_torch.contract_theta(tensors_b)
+    theta_a = graddesc_global.contract_theta(tensors_a)
+    theta_b = graddesc_global.contract_theta(tensors_b)
     theta = np.stack([theta_a, theta_b], axis=0)
     return rearrange(theta, "b pa pb l r -> b (pa pb) l r")
 
@@ -294,7 +293,7 @@ def branch_from_theta(
         "rho_LM_MR_trace_norm_discard_classical_identical_blocks",
         "rho_LM_MR_trace_norm_identical_blocks",
         "rho_LM_MR_trace_norm",
-        "rho_half_LM_MR_trace_norm",
+        # "rho_half_LM_MR_trace_norm",
         "graddesc_global_reconstruction_non_interfering",
         "graddesc_global_reconstruction_split_non_interfering",
     ],
@@ -335,13 +334,13 @@ def branch_from_theta(
         "rho_LM_MR_trace_norm_discard_classical_identical_blocks": rho_LM_MR_trace_norm_discard_classical_identical_blocks,
         "rho_LM_MR_trace_norm_identical_blocks": rho_LM_MR_trace_norm_identical_blocks,
         "rho_LM_MR_trace_norm": rho_LM_MR_trace_norm,
-        "rho_half_LM_MR_trace_norm": rho_half_LM_MR_trace_norm,
+        # "rho_half_LM_MR_trace_norm": rho_half_LM_MR_trace_norm,
         "graddesc_global_reconstruction_non_interfering": graddesc_global_reconstruction_non_interfering,
         "graddesc_global_reconstruction_split_non_interfering": graddesc_global_reconstruction_split_non_interfering,
     }
     fn_graddesc = fn_dict_graddesc[graddesc_method]
 
-    tensor = utils.make_square(theta_scrambled, xFast=2)
+    tensor = utils.make_square(theta_scrambled, 2)
     t1 = time.time()
     L, S, R = fn_iterative(tensor, n_steps=n_steps_iterative)
     t2 = time.time()
@@ -361,7 +360,7 @@ def branch(
         "rho_LM_MR_trace_norm_discard_classical_identical_blocks",
         "rho_LM_MR_trace_norm_identical_blocks",
         "rho_LM_MR_trace_norm",
-        "rho_half_LM_MR_trace_norm",
+        # "rho_half_LM_MR_trace_norm",
         "graddesc_global_reconstruction_non_interfering",
         "graddesc_global_reconstruction_split_non_interfering",
     ],

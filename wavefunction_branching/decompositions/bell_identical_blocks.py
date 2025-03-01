@@ -1,19 +1,14 @@
 """Code adapted from Miguel Frias Perez: Converting long-range entanglement into mixture: tensor-network approach to local equilibration https://arxiv.org/abs/2308.04291"""
 
-# %%
 import time
-
-# import wavefunction_branching.decompositions.block_diagonal.simultaneous_block_svd as bsvd
-from typing import Literal, TypeAlias
+from typing import TypeAlias
 
 import numpy as np
 from jaxtyping import Complex
 from opt_einops import einsum, rearrange
 from scipy.optimize import minimize
-from tenpy.networks.mps import MPS
 
 import wavefunction_branching.measure as measure
-from wavefunction_branching.decompositions.utils import make_square, unitize
 from wavefunction_branching.types import (
     FastVector,
     LeftEnvironmentTensor,
@@ -24,6 +19,7 @@ from wavefunction_branching.types import (
     SlowTensor,
     UnitarySplittingTensor,
 )
+from wavefunction_branching.utils.tensors import make_square, unitize
 
 PackedVector: TypeAlias = Complex[np.ndarray, "dPacked"]
 # ^ where dPacked = 4*(nBranches*dVirt*dSlow) + 2*(dPhys*dSlow*dSlow)
@@ -865,7 +861,7 @@ def combined_optimization(
     early_stopping: bool = True,
     keep_classical_correlations: bool = True,
 ) -> tuple[LeftSplittingTensor, SlowTensor, RightSplittingTensor, dict]:
-    tensor = make_square(tensor, xFast=2)
+    tensor = make_square(tensor, 2)
     dPhys, dVirt, dVirt_R = tensor.shape
     assert dVirt == dVirt_R
     dSlow = int(dVirt / xFast)
@@ -907,142 +903,3 @@ def combined_optimization(
             keep_classical_correlations=keep_classical_correlations,
         )
         return L, S, R, info
-
-
-def branch(
-    psi: MPS,
-    formL_target=1.0,
-    formR_target=1.0,
-    coarsegrain_from: int | Literal["half"] = "half",
-    coarsegrain_size=2,
-    maxiter_heuristic=500,
-    tolEntropy=1e-2,
-    tolNegativity=0.2,
-    n_attempts_iterative=10,
-    n_iterations_per_attempt=10**4,
-    early_stopping=True,
-    keep_classical_correlations=True,
-    **kwargs,
-) -> tuple[Complex[np.ndarray, "branch p L R"], dict]:  # theta_purified[i] = U @ theta_block_i @ Vh
-    if coarsegrain_from == "half":
-        coarsegrain_from = int(psi.L / 2 - coarsegrain_size / 2)
-
-    theta_scrambled = rearrange(
-        psi.get_theta(
-            coarsegrain_from, n=coarsegrain_size, formL=formL_target, formR=formR_target, cutoff=0.0
-        ).to_ndarray(),
-        "L p1 p2 R -> (p1 p2) L R",
-    )
-
-    tensor = make_square(theta_scrambled, xFast=2)
-    L, S, R, info = combined_optimization(
-        tensor,
-        n_attempts_iterative=n_attempts_iterative,
-        n_iterations_per_attempt=n_iterations_per_attempt,
-        early_stopping=early_stopping,
-        maxiter_heuristic=maxiter_heuristic,
-        tolEntropy=tolEntropy,
-        tolNegativity=tolNegativity,
-        keep_classical_correlations=keep_classical_correlations,
-    )
-
-    # L: Complex[np.ndarray, "xFast dVirt dSlow"]
-    # S: Complex[np.ndarray, "dPhys dSlow dSlow"]
-    # R: Complex[np.ndarray, "xFast dSlow dVirt"]
-    if keep_classical_correlations:
-        theta_purified = einsum(
-            L,
-            S,
-            R,
-            "xFast dVirt_L dSlow_L, dPhys dSlow_L dSlow_R, xFast dSlow_R dVirt_R -> xFast dPhys dVirt_L dVirt_R",
-        )
-    else:
-        theta_purified = einsum(
-            L,
-            S,
-            R,
-            "xFast_L dVirt_L dSlow_L, dPhys dSlow_L dSlow_R, xFast_R dSlow_R dVirt_R -> xFast_L xFast_R dPhys dVirt_L dVirt_R",
-        )
-        theta_purified = rearrange(
-            theta_purified,
-            "xFast_L xFast_R dPhys dVirt_L dVirt_R -> (xFast_L xFast_R) dPhys dVirt_L dVirt_R",
-        )
-
-    if not info["rejected"]:
-        # Characterize the quality of the decomposition
-        density_matrix_orig = einsum(
-            theta_scrambled, np.conj(theta_scrambled), "p  l  r ,           pc l r      ->  p pc"
-        )
-        density_matrix_new_pure = einsum(
-            theta_purified, np.conj(theta_purified), "b p  l  r ,           bc pc l r      ->  p pc"
-        )
-        density_matrix_new_mixed = einsum(
-            theta_purified, np.conj(theta_purified), "b p  l  r ,           b pc l r      ->  p pc"
-        )
-        # Normalize the decomposition
-        norm_orig = np.trace(density_matrix_orig)
-        norm = np.trace(density_matrix_new_mixed)
-        renorm_factor = np.sqrt(norm_orig / norm)
-        theta_purified *= renorm_factor
-
-        # Characterize the quality of the decomposition
-        density_matrix_new_pure = einsum(
-            theta_purified, np.conj(theta_purified), "b p  l  r ,           bc pc l r      ->  p pc"
-        )
-        density_matrix_new_mixed = einsum(
-            theta_purified, np.conj(theta_purified), "b p  l  r ,           b pc l r      ->  p pc"
-        )
-        density_matrix_branches = []
-        for i in range(theta_purified.shape[0]):
-            density_matrix_branches.append(
-                einsum(
-                    theta_purified[i],
-                    np.conj(theta_purified[i]),
-                    "p  l  r ,         pc l r                   ->  p pc",
-                )
-            )
-
-        norm_orig = np.trace(density_matrix_orig)
-        norm = np.trace(density_matrix_new_mixed)
-        # print(f'rho_norm_orig = {norm_orig}')
-        # print(f'rho_norm_new_mixed = {norm}')
-
-        trace_distance_pure = measure.trace_distance(density_matrix_orig, density_matrix_new_pure)
-
-        trace_distance_mixed = measure.trace_distance(density_matrix_orig, density_matrix_new_mixed)
-
-        # print(f'trace_distance_pure = {trace_distance_pure:.2E}')
-        # print(f'trace_distance_mixed = {trace_distance_mixed:.2E}')
-        info["trace_distance_pure"] = trace_distance_pure
-        info["trace_distance_mixed"] = trace_distance_mixed
-
-        info["branch_overlaps"] = einsum(
-            theta_purified, np.conj(theta_purified), "b p  l  r ,           bc pc l r      ->  b bc"
-        )
-        props_orig = measure.calculate_properties_2site_density_matrix(
-            rearrange(density_matrix_orig, "(p1 p2) (pc1 pc2) -> p1 p2 pc1 pc2", p1=2, pc1=2)
-        )
-        props_new_mixed = measure.calculate_properties_2site_density_matrix(
-            rearrange(density_matrix_new_mixed, "(p1 p2) (pc1 pc2) -> p1 p2 pc1 pc2", p1=2, pc1=2)
-        )
-        props_new_branches = []
-        for i in range(len(density_matrix_branches)):
-            props_new_branches.append(
-                measure.calculate_properties_2site_density_matrix(
-                    rearrange(
-                        density_matrix_branches[i],
-                        "(p1 p2) (pc1 pc2) -> p1 p2 pc1 pc2",
-                        p1=2,
-                        pc1=2,
-                    )
-                )
-            )
-        for key in props_orig.keys():
-            info[key + "_orig     "] = props_orig[key]
-            info[key + "_new_mixed"] = props_new_mixed[key]
-            combined = 0.0
-            for i in range(len(props_new_branches)):
-                info[key + f"_branch_{i} "] = props_new_branches[i][key]
-                combined += props_new_branches[i][key] * props_new_branches[i]["tr(rho)"]
-            info[key + "_combined "] = combined
-    return theta_purified, info

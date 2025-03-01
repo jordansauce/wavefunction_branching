@@ -17,13 +17,12 @@
 # TODO:
 #    Add some more validation metrics using eg. trace norms
 
-import copy
-from typing import TypeAlias
+from collections.abc import Iterable
+from typing import Any, TypeAlias
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from jaxtyping import Complex, Float
+from jaxtyping import Complex, Float, Num
 from opt_einops import (
     einsum,
     rearrange,
@@ -37,10 +36,11 @@ from wavefunction_branching.types import MatrixStack
 TorchScalarFloat: TypeAlias = Float[torch.Tensor, ""]
 TorchScalarComplex: TypeAlias = Complex[torch.Tensor, ""]
 MatrixStackTorch: TypeAlias = Complex[torch.Tensor, "dPhys dVirt_L dVirt_R"]
+MatrixStackAny: TypeAlias = Num[Any, "dPhys dVirt_L dVirt_R"]
 ArrayLike: TypeAlias = np.ndarray | torch.Tensor
 
 
-def to_torch(tensors: list[np.ndarray]) -> list[torch.Tensor]:
+def to_torch(tensors: Iterable[np.ndarray]) -> list[torch.Tensor]:
     return [torch.tensor(t) for t in tensors]
 
 
@@ -56,7 +56,7 @@ def to_numpy(tensors: list[torch.Tensor]) -> list[np.ndarray]:
     return [t if isinstance(t, np.ndarray) else t.cpu().detach().numpy() for t in tensors]
 
 
-def calc_norm(tensors: list[MatrixStackTorch] | list[MatrixStack]):
+def calc_norm(tensors: list[MatrixStackAny]):
     pattern = ", ".join([f"p{i} m{i} m{i + 1}" for i in range(len(tensors))])
     pattern += ", " + ", ".join(
         [
@@ -72,8 +72,8 @@ def calc_norm(tensors: list[MatrixStackTorch] | list[MatrixStack]):
 
 
 def normalize(
-    tensors: list[MatrixStackTorch] | list[MatrixStack],
-) -> list[MatrixStackTorch] | list[MatrixStack]:
+    tensors: list[MatrixStackAny],
+) -> list[MatrixStackAny]:
     norm = calc_norm(tensors)
     rescale_value = 1.0 / (norm ** (0.5 / len(tensors)))
     for t in tensors:
@@ -81,7 +81,7 @@ def normalize(
     return tensors
 
 
-def contract_theta(tensors: list[MatrixStackTorch]) -> TorchScalarComplex:
+def contract_theta(tensors: list[MatrixStackAny]) -> TorchScalarComplex | np.ndarray:
     pattern = ", ".join([f"p{i} m{i} m{i + 1}" for i in range(len(tensors))])
     pattern += " -> " + " ".join([f"p{i}" for i in range(len(tensors))]) + f" m0 m{len(tensors)}"
     # print(f'contract_theta pattern: {pattern}')
@@ -191,9 +191,9 @@ def calc_loss(
 
 
 def optimize(
-    tensors_orig_np: list[MatrixStack],
-    tensors_a_np: list[MatrixStack],
-    tensors_b_np: list[MatrixStack],
+    tensors_orig_np: Iterable[MatrixStack],
+    tensors_a_np: Iterable[MatrixStack],
+    tensors_b_np: Iterable[MatrixStack],
     lr: float = 0.005,
     reconstruction_weight: float = 1.0,
     interference_weight: float = 1.0,
@@ -241,6 +241,7 @@ def optimize(
             # loss += norm_loss
             loss.backward()
             optimizer.step()
+        assert isinstance(loss, torch.Tensor)
         losses.append(loss.item())
         assert isinstance(reconstruction_loss, torch.Tensor)
         assert isinstance(interference_loss, torch.Tensor)
@@ -261,7 +262,9 @@ def optimize(
     )
 
 
-def split(tensor, form_L=0.5, form_R=0.5, cutoff=0.0, max_bond=None):
+def split(
+    tensor: Num[Any, "pl pr l r"], form_L=0.5, form_R=0.5, cutoff=0.0, max_bond=None
+) -> tuple[Num[Any, "p l m"], Num[Any, "p m r"]]:
     N = tensor.shape[0]
     p = int(np.sqrt(N))
     M = rearrange(tensor, "(pl pr) l r -> (pl l) (pr r)", pl=p)
@@ -280,102 +283,6 @@ def split(tensor, form_L=0.5, form_R=0.5, cutoff=0.0, max_bond=None):
     L = rearrange(L, "(p l) m -> p l m", p=p)
     R = rearrange(R, "m (p r) -> p m r", p=p)
     return L, R
-
-
-def optimize_from_block_diagonal(
-    A,
-    U,
-    B,
-    Vh,
-    block_sizes,
-    ext_bond_expansion_factor=1.0,
-    cutoff=0.0,
-    max_bond_interior=None,
-    verbose=False,
-    interference_weight=0.01,
-    lr=0.005,
-    gamma=0.95,
-    epochs=25,
-    form_L=0.5,
-    form_R=0.5,
-):
-    """
-    Inputs:
-        A: the original matrices - (batch, L, R)
-        U: unitary (L, L)
-        B: the block diagonal matrices (batch, L, R)
-        Vh: unitary (R, R)
-        such that A[i] = U @ B[i] @ Vh"""
-    ########################################################################
-    # Recover the non-interfering decomposition
-
-    # 2) Split the tensors up
-    # TODO: Adapt this for rectangular blocks
-    fac = ext_bond_expansion_factor - 1.0
-    dim_L_a = min(B.shape[1], int(block_sizes[0] * (1.0 - fac) + B.shape[1] * fac))
-    dim_R_a = min(B.shape[2], int(block_sizes[0] * (1.0 - fac) + B.shape[2] * fac))
-    dim_L_b = min(B.shape[1], int(block_sizes[1] * (1.0 - fac) + B.shape[1] * fac))
-    dim_R_b = min(B.shape[2], int(block_sizes[1] * (1.0 - fac) + B.shape[2] * fac))
-
-    block_start_L_b = dim_L_b - block_sizes[1]
-    block_start_R_b = dim_R_b - block_sizes[1]
-
-    b_start_L_in_a = B.shape[1] - dim_L_b
-    b_start_R_in_a = B.shape[2] - dim_R_b
-
-    U_a = copy.deepcopy(U)[:, :dim_L_a]
-    U_b = copy.deepcopy(U)[:, (U.shape[1] - dim_L_b) :]
-    Vh_a = copy.deepcopy(Vh)[:dim_R_a, :]
-    Vh_b = copy.deepcopy(Vh)[(Vh.shape[0] - dim_R_b) :, :]
-
-    B_a = copy.deepcopy(B[:, :dim_L_a, :dim_R_a])
-    B_a[:, block_sizes[0] : dim_L_a, block_sizes[0] : dim_R_a] = 0.0
-
-    B_b = copy.deepcopy(B[:, b_start_L_in_a:, b_start_R_in_a:])
-    B_b[:, :block_start_L_b, :block_start_R_b] = 0.0
-
-    U_a = np.expand_dims(U_a, 0)
-    U_b = np.expand_dims(U_b, 0)
-    Vh_a = np.expand_dims(Vh_a, 0)
-    Vh_b = np.expand_dims(Vh_b, 0)
-
-    L_a, R_a = split(B_a, cutoff=cutoff, max_bond=max_bond_interior, form_L=form_L, form_R=form_R)
-    L_b, R_b = split(B_b, cutoff=cutoff, max_bond=max_bond_interior, form_L=form_L, form_R=form_R)
-
-    L_orig, R_orig = split(A)
-
-    # 4) Gradient descent non-interference optimization
-    tensors_a, tensors_b, info = optimize(
-        [L_orig, R_orig],
-        [U_a, L_a, R_a, Vh_a],
-        [U_b, L_b, R_b, Vh_b],
-        interference_weight=interference_weight,
-        lr=lr,
-        gamma=gamma,
-        epochs=epochs,
-    )
-
-    if verbose:
-        plt.imshow(einsum(abs(contract_theta([L_a, R_a])), "p0 p1 m0 m2 -> m0 m2"))
-        plt.show()
-        plt.imshow(einsum(abs(contract_theta([L_b, R_b])), "p0 p1 m0 m2 -> m0 m2"))
-        plt.show()
-        print(f"norm_a = {calc_norm(tensors_a)}, norm_b = {calc_norm(tensors_b)}")
-        plt.plot(info["losses"], label="total loss")
-        plt.plot(info["reconstruction_losses"], label="reconstruction loss")
-        plt.plot(info["interference_losses"], label="interference loss")
-        plt.legend()
-        plt.yscale("log")
-        plt.show()
-
-    U_a, L_a, R_a, Vh_a = tensors_a
-    U_b, L_b, R_b, Vh_b = tensors_b
-
-    theta_a = einsum(U_a, L_a, R_a, Vh_a, "b L l, pl l m, pr m r, b r R -> pl pr L R")
-    theta_b = einsum(U_b, L_b, R_b, Vh_b, "b L l, pl l m, pr m r, b r R -> pl pr L R")
-    theta = np.stack([theta_a, theta_b])
-    theta = rearrange(theta, "b pl pr L R -> b (pl pr) L R")
-    return theta, info
 
 
 # %%

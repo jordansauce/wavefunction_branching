@@ -9,14 +9,6 @@ repos:
   #         - commit
   - repo: local
     hooks:
-      # - id: pyright
-      #   name: Pyright
-      #   entry: pyright
-      #   language: system
-      #   types: [python]
-      #   stages:
-      #     - pre-commit
-
       - id: ruff-lint
         name: Ruff lint
         entry: ruff check
@@ -33,3 +25,11 @@ repos:
         types: [python]
         stages:
           - pre-commit
+          
+      # - id: pyright
+      #   name: Pyright
+      #   entry: pyright
+      #   language: system
+      #   types: [python]
+      #   stages:
+      #     - pre-commit

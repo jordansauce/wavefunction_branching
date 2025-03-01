@@ -2,14 +2,13 @@
 # %%
 
 import time
-from typing import Literal, TypeAlias
+from typing import TypeAlias
 
 import numpy as np
 import torch
 from jaxtyping import Complex
 from opt_einops import einsum, rearrange, repeat
 from scipy.optimize import minimize
-from tenpy.networks.mps import MPS
 
 import wavefunction_branching.measure as measure
 from wavefunction_branching.decompositions.bell_identical_blocks import mera_like_optimization
@@ -22,6 +21,7 @@ from wavefunction_branching.types import (
     RightSplittingTensor,
     UnitarySplittingTensor,
 )
+from wavefunction_branching.utils.tensors import make_square
 
 PackedVector: TypeAlias = Complex[np.ndarray, "dPacked"]
 # ^ where dPacked = 4*(nBranches*dVirt*dSlow) + 2*(dPhys*nBranches*dSlow*dSlow)
@@ -163,8 +163,7 @@ def traceDistance(
 
     wLeft, vLeft = np.linalg.eigh(normRhoLeft.reshape(dPhys * dVirt, -1))
     wRight, vRight = np.linalg.eigh(normRhoRight.reshape(dPhys * dVirt, -1))
-
-    return [0.5 * np.sum(abs(wLeft)), 0.5 * np.sum(abs(wRight))]
+    return [0.5 * np.sum(np.abs(wLeft)), 0.5 * np.sum(np.abs(wRight))]
 
 
 def myTraceDistance(
@@ -491,21 +490,6 @@ def heuristic_optimization(
     )
 
 
-def make_square(tensor: MPSTensor, nBlocks: int = 2) -> MPSTensor:
-    shape = list(tensor.shape)
-    tensor = tensor.reshape(-1, shape[-2], shape[-1])  # physical, left, right
-    # Ensure that the tensors are square
-    if shape[-2] != shape[-1] or max(tensor.shape[1:]) % nBlocks != 0:
-        shape = list(tensor.shape)
-        chi = max(shape[1:])
-        if chi % nBlocks != 0:  # Make the bond dimension divisible by the number of blocks
-            chi += nBlocks - chi % nBlocks
-        tensor_ = np.zeros((shape[0], chi, chi), dtype=tensor.dtype)
-        tensor_[:, : shape[1], : shape[2]] = tensor
-        tensor = tensor_
-    return tensor
-
-
 def combined_optimization(
     tensor: MPSTensor,
     tolEntropy: float = 9999.0,  # reasonable: 1e-2
@@ -518,7 +502,7 @@ def combined_optimization(
     early_stopping: bool = True,
     numeric_grad=False,
 ) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor, dict]:
-    tensor = make_square(tensor, nBlocks=2)
+    tensor = make_square(tensor, 2)
     dPhys, dVirt, dVirt_R = tensor.shape
     assert dVirt == dVirt_R
     dSlow = int(dVirt / nBlocks)
@@ -558,128 +542,3 @@ def combined_optimization(
             numeric_grad=numeric_grad,
         )
         return L, S, R, info
-
-
-def branch(
-    psi: MPS,
-    formL_target=1.0,
-    formR_target=1.0,
-    coarsegrain_from: int | Literal["half"] = "half",
-    coarsegrain_size=2,
-    maxiter_heuristic=500,
-    tolEntropy=1e-2,
-    tolNegativity=0.2,
-    n_attempts_iterative=10,
-    n_iterations_per_attempt=10**4,
-    early_stopping=True,
-    **kwargs,
-) -> tuple[Complex[np.ndarray, "branch p L R"], dict]:  # theta_purified[i] = U @ theta_block_i @ Vh
-    if coarsegrain_from == "half":
-        coarsegrain_from = int(psi.L / 2 - coarsegrain_size / 2)
-
-    theta_scrambled = rearrange(
-        psi.get_theta(
-            coarsegrain_from, n=coarsegrain_size, formL=formL_target, formR=formR_target, cutoff=0.0
-        ).to_ndarray(),
-        "L p1 p2 R -> (p1 p2) L R",
-    )
-
-    tensor = make_square(theta_scrambled, nBlocks=2)
-    L, S, R, info = combined_optimization(
-        tensor,
-        n_attempts_iterative=n_attempts_iterative,
-        n_iterations_per_attempt=n_iterations_per_attempt,
-        early_stopping=early_stopping,
-        maxiter_heuristic=maxiter_heuristic,
-        tolEntropy=tolEntropy,
-        tolNegativity=tolNegativity,
-    )
-
-    # L: Complex[np.ndarray, "nBlocks dVirt dSlow"]
-    # S: Complex[np.ndarray, "dPhys dSlow dSlow"]
-    # R: Complex[np.ndarray, "nBlocks dSlow dVirt"]
-    theta_purified = einsum(
-        L,
-        S,
-        R,
-        "nBlocks dVirt_L dSlow_L, dPhys nBlocks dSlow_L dSlow_R, nBlocks dSlow_R dVirt_R -> nBlocks dPhys dVirt_L dVirt_R",
-    )
-
-    if not info["rejected"]:
-        # Characterize the quality of the decomposition
-        density_matrix_orig = einsum(
-            theta_scrambled, np.conj(theta_scrambled), "p  l  r ,           pc l r      ->  p pc"
-        )
-        density_matrix_new_pure = einsum(
-            theta_purified, np.conj(theta_purified), "b p  l  r ,           bc pc l r      ->  p pc"
-        )
-        density_matrix_new_mixed = einsum(
-            theta_purified, np.conj(theta_purified), "b p  l  r ,           b pc l r      ->  p pc"
-        )
-        # Normalize the decomposition
-        norm_orig = np.trace(density_matrix_orig)
-        norm = np.trace(density_matrix_new_mixed)
-        renorm_factor = np.sqrt(norm_orig / norm)
-        theta_purified *= renorm_factor
-
-        # Characterize the quality of the decomposition
-        density_matrix_new_pure = einsum(
-            theta_purified, np.conj(theta_purified), "b p  l  r ,           bc pc l r      ->  p pc"
-        )
-        density_matrix_new_mixed = einsum(
-            theta_purified, np.conj(theta_purified), "b p  l  r ,           b pc l r      ->  p pc"
-        )
-        density_matrix_branches = []
-        for i in range(theta_purified.shape[0]):
-            density_matrix_branches.append(
-                einsum(
-                    theta_purified[i],
-                    np.conj(theta_purified[i]),
-                    "p  l  r ,         pc l r                   ->  p pc",
-                )
-            )
-
-        norm_orig = np.trace(density_matrix_orig)
-        norm = np.trace(density_matrix_new_mixed)
-        # print(f'rho_norm_orig = {norm_orig}')
-        # print(f'rho_norm_new_mixed = {norm}')
-
-        trace_distance_pure = measure.trace_distance(density_matrix_orig, density_matrix_new_pure)
-
-        trace_distance_mixed = measure.trace_distance(density_matrix_orig, density_matrix_new_mixed)
-
-        # print(f'trace_distance_pure = {trace_distance_pure:.2E}')
-        # print(f'trace_distance_mixed = {trace_distance_mixed:.2E}')
-        info["trace_distance_pure"] = trace_distance_pure
-        info["trace_distance_mixed"] = trace_distance_mixed
-
-        info["branch_overlaps"] = einsum(
-            theta_purified, np.conj(theta_purified), "b p  l  r ,           bc pc l r      ->  b bc"
-        )
-        props_orig = measure.calculate_properties_2site_density_matrix(
-            rearrange(density_matrix_orig, "(p1 p2) (pc1 pc2) -> p1 p2 pc1 pc2", p1=2, pc1=2)
-        )
-        props_new_mixed = measure.calculate_properties_2site_density_matrix(
-            rearrange(density_matrix_new_mixed, "(p1 p2) (pc1 pc2) -> p1 p2 pc1 pc2", p1=2, pc1=2)
-        )
-        props_new_branches = []
-        for i in range(len(density_matrix_branches)):
-            props_new_branches.append(
-                measure.calculate_properties_2site_density_matrix(
-                    rearrange(
-                        density_matrix_branches[i],
-                        "(p1 p2) (pc1 pc2) -> p1 p2 pc1 pc2",
-                        p1=2,
-                        pc1=2,
-                    )
-                )
-            )
-        for key in props_orig.keys():
-            info[key + "_orig     "] = props_orig[key]
-            info[key + "_new_mixed"] = props_new_mixed[key]
-            combined = 0.0
-            for i in range(len(props_new_branches)):
-                info[key + f"_branch_{i} "] = props_new_branches[i][key]
-                combined += props_new_branches[i][key] * props_new_branches[i]["tr(rho)"]
-            info[key + "_combined "] = combined
-    return theta_purified, info
