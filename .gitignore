@@ -2,33 +2,23 @@
 pyrightconfig.json
 *.pk
 *.pkl
-benchmarks/decompositions/block_diagonal/block_diagonal_test_data*
-*/pickles/*
-pickle_analysis/data/*
+*/pickles
 *.pickle
 *.pyc
-*/out/*
+*/out/
 *.out
-*.ini
-wandb
 *.pkltmp
-runs
-slurm
-block_diagonal_test_data
-exact/results_
-exact/results__
+runs/
+slurm/
+instantaneous_benchmarks/block_diagonal_test_data/
+block_diagonal_test_data/
 *_old
-wavefunction_branching/branching_scripts/out
-out
-__pycache__/
-**/__pycache__
-pickle_analysis/plots/
-pickle_analysis/plots/*
-pickle_analysis/plots_keeping_classical_correlations_vs_not/
-pickle_analysis/plots_keeping_classical_correlations_vs_not/*
-runs length 200/*
+wavefunction_branching/branching_scripts/out/
+out/
+evolution_analysis/data/
+evolution_analysis/plots/
+evolution_analysis/plots_keeping_classical_correlations_vs_not/
 *.ini
-**.ini
 
 .vscode/settings.json
 

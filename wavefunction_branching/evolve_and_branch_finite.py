@@ -1466,8 +1466,11 @@ class BranchingMPS:
 def main(
     iterative_method: None
     | Literal[
-        "bell_discard_classical", "bell_keep_classical", "vertial_svd_micro_bsvd", "pulling_through"
-    ] = "vertial_svd_micro_bsvd",
+        "bell_discard_classical",
+        "bell_keep_classical",
+        "vertical_svd_micro_bsvd",
+        "pulling_through",
+    ] = "vertical_svd_micro_bsvd",
     graddesc_method: None
     | Literal[
         "rho_LM_MR_trace_norm_discard_classical_identical_blocks",
@@ -1643,7 +1646,7 @@ if __name__ == "__main__":
     # for iterative_method in ['bell_discard_classical']:
     #     print_args_kwargs_then_run_main(iterative_method, "rho_LM_MR_trace_norm_discard_classical_identical_blocks", t_evo = 2.6, chi_max=30, chi_to_branch=30, max_branches=100, n_sites=30, BC_MPS='finite', maxiter_heuristic=500, min_time_between_branching_attempts=2, synchronization_time=5)
 
-    # for iterative_method in 'bell_discard_classical', 'bell_keep_classical', 'vertial_svd_micro_bsvd', 'pulling_through':
+    # for iterative_method in 'bell_discard_classical', 'bell_keep_classical', 'vertical_svd_micro_bsvd', 'pulling_through':
     #     print_args_kwargs_then_run_main(iterative_method, None, t_evo = 2.6, chi_max=30, chi_to_branch=30, max_branches=100, n_sites=30, BC_MPS='finite', maxiter_heuristic=500, min_time_between_branching_attempts=2, synchronization_time=5)
 
     # for graddesc_method in 'rho_LM_MR_trace_norm_discard_classical_identical_blocks', 'rho_LM_MR_trace_norm_identical_blocks', 'rho_half_LM_MR_trace_norm', 'graddesc_global_reconstruction_non_interfering', 'graddesc_global_reconstruction_split_non_interfering':

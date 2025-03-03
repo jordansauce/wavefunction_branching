@@ -8,6 +8,19 @@ from opt_einops import einsum, rearrange
 from wavefunction_branching.types import Matrix, MPSTensor
 
 
+def make_json_serializable(obj):
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, complex):
+        return float(np.real(obj))
+    elif obj is None:
+        return "null"
+
+
 def make_square(tensor: MPSTensor, nBlocks: int = 2) -> MPSTensor:
     shape = list(tensor.shape)
     tensor = tensor.reshape(-1, shape[-2], shape[-1])  # physical, left, right

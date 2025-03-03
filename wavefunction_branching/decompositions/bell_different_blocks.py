@@ -2,7 +2,7 @@
 # %%
 
 import time
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
 import numpy as np
 import torch
@@ -69,7 +69,7 @@ def costFun_numeric(
     dVirt: int,
     left_env: LeftEnvironmentTensor,
     right_env: RightEnvironmentTensor,
-) -> tuple[float, PackedVector]:
+) -> tuple[Any, PackedVector]:
     """Compute the cost function and the gradient for the heuristic optimization"""
     # Construct the three pieces
     L, S, R = unpack_to_LSR(
@@ -129,7 +129,6 @@ def costFun_numeric(
         grad_L.detach().cpu().numpy(), grad_S.detach().cpu().numpy(), grad_R.detach().cpu().numpy()
     )
     cost_value = cost.detach().cpu().numpy()
-    assert isinstance(cost_value, float)
     return (cost_value, packed_grad)
 
 

@@ -5,7 +5,8 @@ import warnings
 from typing import Literal
 
 import numpy as np
-from opt_einops import einsum, rearrange
+from jaxtyping import Complex
+from opt_einops import einsum, rearrange, repeat
 from tenpy.networks.mps import MPS
 
 import wavefunction_branching.decompositions.bell_different_blocks as bell_different_blocks
@@ -87,6 +88,13 @@ def make_S_square(
 ############################################################################################################
 
 
+def expand_S(
+    S: Complex[np.ndarray, "dPhys dim_l dim_r"],
+) -> Complex[np.ndarray, "dPhys 2 dim_l dim_r"]:
+    S_expanded = repeat(S, "dPhys dim_l dim_r -> dPhys b dim_l dim_r", b=2) / np.sqrt(2)
+    return S_expanded
+
+
 def bell_decomp_iterative_discard_classical(
     As: MatrixStack, n_steps=500
 ) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor]:
@@ -100,8 +108,7 @@ def bell_decomp_iterative_discard_classical(
         keep_classical_correlations=False,
     )
     assert len(S.shape) == 3  # dPhys, dSlow, dSlow
-    S_expanded = np.zeros([S.shape[0], 2, S.shape[1], S.shape[2]], dtype=S.dtype)
-    S_expanded[:, 0, ...] = S
+    S_expanded = expand_S(S)
     return make_S_square(L, S_expanded, R)
 
 
@@ -118,8 +125,7 @@ def bell_decomp_iterative_keep_classical(
         keep_classical_correlations=True,
     )
     assert len(S.shape) == 3  # dPhys, dSlow, dSlow
-    S_expanded = np.zeros([S.shape[0], 2, S.shape[1], S.shape[2]], dtype=S.dtype)
-    S_expanded[:, 0, ...] = S
+    S_expanded = expand_S(S)
     return make_S_square(L, S_expanded, R)
 
 
@@ -264,13 +270,13 @@ def graddesc_global_reconstruction_split_non_interfering(  # aka graddesc_non_in
 def no_graddesc_identical_blocks_keep_classical(
     As: MatrixStack, L: LeftSplittingTensor, S: BlockDiagTensor, R: RightSplittingTensor, n_steps=0
 ) -> PurificationMatrixStack:
-    return LSR_to_purification(L, S[:, 0], R, keep_classical=True)
+    return LSR_to_purification(L, S[:, 0] * np.sqrt(2), R, keep_classical=True)
 
 
 def no_graddesc_identical_blocks_discard_classical(
     As: MatrixStack, L: LeftSplittingTensor, S: BlockDiagTensor, R: RightSplittingTensor, n_steps=0
 ) -> PurificationMatrixStack:
-    return LSR_to_purification(L, S[:, 0], R, keep_classical=False)
+    return LSR_to_purification(L, S[:, 0] * np.sqrt(2), R, keep_classical=False)
 
 
 def no_graddesc_different_blocks(
@@ -286,7 +292,10 @@ def branch_from_theta(
     theta_scrambled: MatrixStack,
     iterative_method: None
     | Literal[
-        "bell_discard_classical", "bell_keep_classical", "vertial_svd_micro_bsvd", "pulling_through"
+        "bell_discard_classical",
+        "bell_keep_classical",
+        "vertical_svd_micro_bsvd",
+        "pulling_through",
     ],
     graddesc_method: None
     | Literal[
@@ -316,7 +325,7 @@ def branch_from_theta(
     fn_dict_iterative = {
         "bell_discard_classical": bell_decomp_iterative_discard_classical,
         "bell_keep_classical": bell_decomp_iterative_keep_classical,
-        "vertial_svd_micro_bsvd": iterative_svd_micro_bsvd,
+        "vertical_svd_micro_bsvd": iterative_svd_micro_bsvd,
         "pulling_through": iterative_pulling_through_z0_dim_half,
     }
     fn_iterative = fn_dict_iterative[iterative_method]
@@ -330,7 +339,6 @@ def branch_from_theta(
 
     fn_dict_graddesc = {
         None: no_graddesc,
-        "None": no_graddesc,
         "rho_LM_MR_trace_norm_discard_classical_identical_blocks": rho_LM_MR_trace_norm_discard_classical_identical_blocks,
         "rho_LM_MR_trace_norm_identical_blocks": rho_LM_MR_trace_norm_identical_blocks,
         "rho_LM_MR_trace_norm": rho_LM_MR_trace_norm,
@@ -338,12 +346,25 @@ def branch_from_theta(
         "graddesc_global_reconstruction_non_interfering": graddesc_global_reconstruction_non_interfering,
         "graddesc_global_reconstruction_split_non_interfering": graddesc_global_reconstruction_split_non_interfering,
     }
-    fn_graddesc = fn_dict_graddesc[graddesc_method]
 
+    keep_classical = True
+    if graddesc_method == "rho_LM_MR_trace_norm_discard_classical_identical_blocks":
+        keep_classical = False
+    if graddesc_method is None and iterative_method == "bell_discard_classical":
+        keep_classical = False
+
+    fn_graddesc = fn_dict_graddesc[graddesc_method]
+    norm_orig = einsum(theta_scrambled, np.conj(theta_scrambled), "p l r, p l r -> ")
     tensor = utils.make_square(theta_scrambled, 2)
     t1 = time.time()
     L, S, R = fn_iterative(tensor, n_steps=n_steps_iterative)
     t2 = time.time()
+
+    # # Normalize the purification
+    # theta = LSR_to_purification(L, S, R, keep_classical)
+    # norm = einsum(theta, np.conj(theta), 'b p l r, b p l r -> ')
+    # S /= np.sqrt(norm/norm_orig)
+
     theta_purified = fn_graddesc(tensor, L, S, R, n_steps=n_steps_graddesc)
     t3 = time.time()
     return theta_purified, {"iterative_time": t2 - t1, "graddesc_time": t3 - t2}
@@ -353,7 +374,10 @@ def branch(
     psi: MPS,
     iterative_method: None
     | Literal[
-        "bell_discard_classical", "bell_keep_classical", "vertial_svd_micro_bsvd", "pulling_through"
+        "bell_discard_classical",
+        "bell_keep_classical",
+        "vertical_svd_micro_bsvd",
+        "pulling_through",
     ],
     graddesc_method: None
     | Literal[

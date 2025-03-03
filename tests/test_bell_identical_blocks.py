@@ -5,7 +5,7 @@
 # import wavefunction_branching.decompositions.long_range_bell_orig as bell_orig
 # if __name__ == "__main__":
 #     # Get the directory of sets of "As" matrices to try to simultaneously block-diagonalize
-#     directory_path = r"C:\Users\nadro\Documents\Uni\PhD\Ian\code\WavefunctionBranching\benchmarks\decompositions\block_diagonal\block_diagonal_test_data/directory.json"
+#     directory_path = r"C:\Users\nadro\Documents\Uni\PhD\Ian\code\wavefunction_branching\benchmarks\decompositions\block_diagonal\block_diagonal_test_data/directory.json"
 #     directory = pd.DataFrame(json.load(open(directory_path, mode='rb')))
 #     directory.sort_values('dim_L', inplace=True)
 #     directory = directory[directory['t'] >= 2.8]

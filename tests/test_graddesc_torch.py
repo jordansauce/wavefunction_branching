@@ -1,4 +1,10 @@
 # #%% Non-interfering optimization on random tensors
+# import numpy as np
+# from opt_einops import einsum, rearrange
+
+# from wavefunction_branching.measure import measure_psi
+
+
 # if __name__ == '__main__':
 #     p = 2
 #     L = 50

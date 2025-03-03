@@ -40,7 +40,12 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["wavefunction_branching"]
+packages = [
+    "wavefunction_branching",
+    "instantaneous_benchmarks",
+    "exact",
+    "evolution_analysis"
+]
 
 [tool.ruff]
 line-length = 100
@@ -69,4 +74,4 @@ docstring-code-format = true
 known-third-party = ["wandb"]
 
 [tool.pyright]
-include = ["wavefunction_branching", "exact", "tests"]
+include = ["wavefunction_branching", "exact", "tests", "instantaneous_benchmarks", "evolution_analysis"]
