@@ -5,6 +5,9 @@ description = "A package for identifying non-interfering decompositions of Matri
 requires-python = ">=3.11"
 readme = "README.md"
 dependencies = [
+    "pydantic",
+    "pytest",
+    "ipykernel",
     "torch",
     "quimb",
     "numpy",

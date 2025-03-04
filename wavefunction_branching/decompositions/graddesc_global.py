@@ -122,7 +122,7 @@ def calc_loss_interference_middle(
     pattern += " " + " ".join([f"pc{i}" for i in range(len(tensors_b))])
     # print(f'calc_loss_interference_middle pattern: {pattern}')
     # p0 m0 m1, p1 m1 m2, pc0 m0 mc1, pc1 mc1 m2 -> p0 p1 pc0 pc1
-    return sum_squares(einsum(*tensors_a, *tensors_b, pattern))  # type: ignore
+    return sum_squares(einsum(*tensors_a, *[torch.conj(x) for x in tensors_b], pattern))  # type: ignore
 
 
 def calc_loss_interference_right(
@@ -144,7 +144,7 @@ def calc_loss_interference_right(
     pattern += f" m{len(tensors_a)} mc{len(tensors_b)}"
     # print(f'calc_loss_interference_right pattern: {pattern}')
     # p0 m0 m1, p1 m1 m2, p0 m0 mc1, pc1 mc1 mc2 -> p1 pc1 m2 mc2
-    return sum_squares(einsum(*tensors_a, *tensors_b, pattern))  # type: ignore
+    return sum_squares(einsum(*tensors_a, *[torch.conj(x) for x in tensors_b], pattern))  # type: ignore
 
 
 def calc_loss_interference_left(
@@ -166,7 +166,7 @@ def calc_loss_interference_left(
     pattern += " m0 mc0"
     # print(f'calc_loss_interference_left pattern: {pattern}')
     # p0 m0 m1, p1 m1 m2, pc0 mc0 mc1, p1 mc1 m2 -> p0 pc0 m0 mc0
-    return sum_squares(einsum(*tensors_a, *tensors_b, pattern))  # type: ignore
+    return sum_squares(einsum(*tensors_a, *[torch.conj(x) for x in tensors_b], pattern))  # type: ignore
 
 
 def calc_loss_interference(
