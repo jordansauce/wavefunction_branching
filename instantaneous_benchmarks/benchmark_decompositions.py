@@ -118,7 +118,7 @@ def costFun_rho_half_LM_MR(purif_, orig):
     return cost
 
 
-def test_blockdiag_method(
+def benchmark_blockdiag_method(
     method: Callable[[MatrixStack], PurificationMatrixStack], orig: MatrixStack
 ) -> dict:
     """Runs a decomposition method ("method") on a set of matrices ("orig") and returns the results"""
@@ -595,7 +595,7 @@ if __name__ == "__main__":
                     end="",
                 )
                 np.random.seed(0)
-                out = test_blockdiag_method(method, As_square)
+                out = benchmark_blockdiag_method(method, As_square)
                 # Add results to the results dict
                 results["method_name"].append(method_name)
                 method_name_split = method_name.split("__")

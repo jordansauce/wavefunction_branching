@@ -91,7 +91,7 @@ def make_S_square(
 def expand_S(
     S: Complex[np.ndarray, "dPhys dim_l dim_r"],
 ) -> Complex[np.ndarray, "dPhys 2 dim_l dim_r"]:
-    S_expanded = repeat(S, "dPhys dim_l dim_r -> dPhys b dim_l dim_r", b=2) / np.sqrt(2)
+    S_expanded = repeat(S, "dPhys dim_l dim_r -> dPhys b dim_l dim_r", b=2)
     return S_expanded
 
 
@@ -270,13 +270,13 @@ def graddesc_global_reconstruction_split_non_interfering(  # aka graddesc_non_in
 def no_graddesc_identical_blocks_keep_classical(
     As: MatrixStack, L: LeftSplittingTensor, S: BlockDiagTensor, R: RightSplittingTensor, n_steps=0
 ) -> PurificationMatrixStack:
-    return LSR_to_purification(L, S[:, 0] * np.sqrt(2), R, keep_classical=True)
+    return LSR_to_purification(L, S[:, 0], R, keep_classical=True)
 
 
 def no_graddesc_identical_blocks_discard_classical(
     As: MatrixStack, L: LeftSplittingTensor, S: BlockDiagTensor, R: RightSplittingTensor, n_steps=0
 ) -> PurificationMatrixStack:
-    return LSR_to_purification(L, S[:, 0] * np.sqrt(2), R, keep_classical=False)
+    return LSR_to_purification(L, S[:, 0], R, keep_classical=False)
 
 
 def no_graddesc_different_blocks(
