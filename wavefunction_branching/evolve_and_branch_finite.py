@@ -1,6 +1,7 @@
 # %%
 import copy
 import glob
+import json
 import pickle
 import sys
 import time
@@ -14,7 +15,6 @@ from functools import partial
 from pathlib import Path
 from typing import Literal
 
-import fire
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -36,11 +36,11 @@ from wavefunction_branching.utils.tensors import truncate_tensor
 sys.setrecursionlimit(100000)
 
 NOW = datetime.now().strftime("%Y-%m-%d")
-DEFAULT_OUT_FOLDER = Path("out") / f"{NOW}"
-PICKLE_DIR = DEFAULT_OUT_FOLDER / "pickles"
-PICKLE_DIR.mkdir(exist_ok=True, parents=True)
+WORKSPACE_PATH = Path(__file__).parent.parent.absolute()
+DEFAULT_OUT_FOLDER = WORKSPACE_PATH / f"runs/{NOW}"
 PLOTS_DIR = DEFAULT_OUT_FOLDER / "figures"
 PLOTS_DIR.mkdir(exist_ok=True, parents=True)
+ANALYTIC_RESULTS_PATH = Path(__file__).parent.parent / "exact" / "results"
 
 OP_NAMES_ANALYTIC = {
     "〈σx〉": "sigma_x",
@@ -86,7 +86,9 @@ def get_analytic_results_together(analytic_files: Iterable[str]) -> tuple[np.nda
             analytic_results_together = np.concatenate(
                 [analytic_results_together, analytic_results[:, 1:]], axis=1
             )
-    assert isinstance(analytic_results_together, np.ndarray)
+    assert analytic_results_together is not None, (
+        "No analytic results found: analytic_files = " + str(analytic_files)
+    )
     return analytic_results_together, np.array(Ls)
 
 
@@ -335,22 +337,36 @@ class BranchingMPS:
             self.depth = 0
             self.branching_attempts = 0
             self.wandb_project = wandb_project
+            config_info = {
+                "ID": self.ID,
+                "name": self.name,
+                "max_children": self.max_children,
+                "dt": self.dt,
+                "pickle_file": self.pickle_file,
+                "outfolder": self.outfolder,
+                "created_walltime": self.created_walltime,
+                **info,
+                **asdict(cfg),
+            }
+            # Save the config info to a json file
+            with open(str(self.outfolder) + f"/config_{self.name}.json", "w") as f:
+                # Convert Path objects to strings for JSON serialization
+                serializable_config = {}
+                for key, value in config_info.items():
+                    if isinstance(value, Path):
+                        serializable_config[key] = str(value)
+                    elif isinstance(value, datetime):
+                        serializable_config[key] = value.isoformat()
+                    else:
+                        serializable_config[key] = value
+                json.dump(serializable_config, f, indent=2)
+
             if self.wandb_project is not None:
                 self.run = wandb.init(
                     # Set the project where this run will be logged
                     project=self.wandb_project,
                     # Track hyperparameters and run metadata
-                    config={
-                        "ID": self.ID,
-                        "name": self.name,
-                        "max_children": self.max_children,
-                        "dt": self.dt,
-                        "pickle_file": self.pickle_file,
-                        "outfolder": self.outfolder,
-                        "created_walltime": self.created_walltime,
-                        **info,
-                        **asdict(cfg),
-                    },
+                    config=config_info,
                     # Set the name of the run
                     name=self.name,
                 )
@@ -946,7 +962,10 @@ class BranchingMPS:
                         + "_L_*.npy"
                     )
                     print(f"filename = {filename}")
-                    analytic_files = natsorted(glob.glob(f"exact/results/{filename}"))
+                    analytic_files = natsorted(glob.glob(f"{ANALYTIC_RESULTS_PATH}/{filename}"))
+                    if len(analytic_files) == 0:
+                        print(f"No analytic files found for {filename}")
+                        continue
                     analytic_palette = sns.color_palette(
                         "blend:#FF0,#0F0", n_colors=len(analytic_files) + 1
                     )
@@ -1534,8 +1553,12 @@ def main(
         outfolder = Path(outfolder)
 
     if name == "":
-        name = f"{iterative_method}_{graddesc_method}_L{n_sites}_n{max_branches}"
-
+        branch_function_name = (
+            (str(iterative_method) + "__" + str(graddesc_method))
+            if graddesc_method is not None
+            else str(iterative_method)
+        )
+        name = f"L{n_sites}-chi{chi_max}-at{chi_to_branch}-n{max_branches}-f_{branch_function_name}"
     outfolder.mkdir(exist_ok=True, parents=True)
     pickle_folder = outfolder / "pickles"
     pickle_folder.mkdir(exist_ok=True, parents=True)
@@ -1641,10 +1664,22 @@ def print_args_kwargs_then_run_main(*args, **kwargs):
 
 
 if __name__ == "__main__":
-    fire.Fire(print_args_kwargs_then_run_main)
+    # fire.Fire(print_args_kwargs_then_run_main)
 
-    # for iterative_method in ['bell_discard_classical']:
-    #     print_args_kwargs_then_run_main(iterative_method, "rho_LM_MR_trace_norm_discard_classical_identical_blocks", t_evo = 2.6, chi_max=30, chi_to_branch=30, max_branches=100, n_sites=30, BC_MPS='finite', maxiter_heuristic=500, min_time_between_branching_attempts=2, synchronization_time=5)
+    for iterative_method in ["vertical_svd_micro_bsvd"]:
+        print_args_kwargs_then_run_main(
+            iterative_method,
+            "graddesc_global_reconstruction_non_interfering",
+            t_evo=4.0,
+            chi_max=30,
+            chi_to_branch=30,
+            max_branches=100,
+            n_sites=45,
+            BC_MPS="finite",
+            maxiter_heuristic=500,
+            min_time_between_branching_attempts=2,
+            synchronization_time=5,
+        )
 
     # for iterative_method in 'bell_discard_classical', 'bell_keep_classical', 'vertical_svd_micro_bsvd', 'pulling_through':
     #     print_args_kwargs_then_run_main(iterative_method, None, t_evo = 2.6, chi_max=30, chi_to_branch=30, max_branches=100, n_sites=30, BC_MPS='finite', maxiter_heuristic=500, min_time_between_branching_attempts=2, synchronization_time=5)

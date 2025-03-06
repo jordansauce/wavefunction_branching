@@ -488,8 +488,7 @@ if __name__ == "__main__":
     spectra = defaultdict(list)
 
     # Get the directory of sets of "As" matrices to try to simultaneously block-diagonalize
-    # current_path = Path(__file__).parent.absolute()
-    current_path = Path("instantaneous_benchmarks")
+    current_path = Path(__file__).parent.absolute()
     outfolder = current_path / "benchmark_results"
     outfolder.mkdir(exist_ok=True)
     outfile = outfolder / f"benchmark_results_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"

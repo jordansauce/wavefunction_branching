@@ -10,7 +10,7 @@ pyrightconfig.json
 *.pkltmp
 runs/
 slurm/
-instantaneous_benchmarks/block_diagonal_test_data/
+instantaneous_benchmarks/block_diagonal_test_data/instantaneous_benchmarks/benchmark_results/instantaneous_benchmarks/plots/
 block_diagonal_test_data/
 *_old
 wavefunction_branching/branching_scripts/out/

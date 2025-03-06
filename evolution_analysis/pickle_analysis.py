@@ -91,8 +91,9 @@ def get_first_leaf(branching_mps):
 
 
 if __name__ == "__main__":
-    search_str = "runs/*/pickles/*.pkl"
-    PICKLES_FOLDER = "runs"
+    WORKSPACE_PATH = Path(__file__).parent.parent.absolute()
+    search_str = str(WORKSPACE_PATH / "runs/*/pickles/*.pkl")
+    PICKLES_FOLDER = str(WORKSPACE_PATH / "runs")
     print(f"Searching for files matching {search_str}:")
     dont_plot = []
     pickle_files = glob.glob(search_str)

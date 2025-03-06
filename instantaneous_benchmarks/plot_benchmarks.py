@@ -14,6 +14,7 @@ so start by generating these using generate_test_inputs.py if you don't have the
 
 # %%
 import copy
+import glob
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -24,7 +25,9 @@ import pandas as pd
 import seaborn as sns
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
-from pickle_analysis.error_analysis import (
+from natsort import natsorted
+
+from evolution_analysis.error_analysis import (
     COLORS,
     LINEWIDTH,
     NICE_NAMES,
@@ -50,13 +53,18 @@ PROP_NICE_NAMES = {
 
 
 if __name__ == "__main__":
-    # current_path = Path(__file__).parent.absolute()
-    current_path = Path("instantaneous_benchmarks")
-    # results_path = natsorted(glob.glob(str(current_path / 'benchmark_results/benchmark_results*.json')))[-1]
+    current_path = Path(__file__).parent.absolute()
+    # current_path = Path("instantaneous_benchmarks")
+    results_paths = natsorted(
+        glob.glob(str(current_path / "benchmark_results/benchmark_results*.json"))
+    )
+    assert len(results_paths) > 0, "No results found at " + str(current_path / "benchmark_results")
+    results_path = results_paths[-1]
+
     # results_path = "instantaneous_benchmarks/benchmark_results/benchmark_results_2025-02-18_06-28-41--ising.json"
     # results_path = "instantaneous_benchmarks/benchmark_results/benchmark_results_2025-02-17_04-48-29--ising.json"
     # results_path = "instantaneous_benchmarks/benchmark_results/benchmark_results_2025-01-21_16-40-38--ising.json"
-    results_path = "instantaneous_benchmarks/benchmark_results/benchmark_results_2025-01-21_11-59-05--random-quench.json"
+    # results_path = "instantaneous_benchmarks/benchmark_results/benchmark_results_2025-01-21_11-59-05--random-quench.json"
     # results_path = natsorted(glob.glob(str(current_path / 'benchmark_results/benchmark_results_2024-10-24_22-12-57.json')))[-1]
     print(f"results_path for generating plots: {results_path}")
     results = json.load(open(results_path, "rb"))
@@ -69,7 +77,7 @@ if __name__ == "__main__":
     save_folder_name = Path(results_path).name.split("benchmark_results_")[-1].split(".json")[0]
     plots_folder = current_path / f"plots/{save_folder_name}"
     if not plots_folder.exists():
-        plots_folder.mkdir()
+        plots_folder.mkdir(parents=True, exist_ok=True)
     print(f"plots_folder for saving plots: {plots_folder}")
 
     # Lists are not hashable for plots so make a new column of gauge forms as strings:
