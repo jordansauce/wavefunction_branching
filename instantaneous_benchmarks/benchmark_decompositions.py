@@ -15,11 +15,7 @@ For analysis and plots of the benchmark results, see the plot_benchmarks.py scri
 """
 
 import copy
-
-# import importlib
 import json
-
-# from sklearn.utils import shuffle
 import time
 import traceback
 from collections import defaultdict
@@ -27,6 +23,7 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
+import fire
 import numpy as np
 import pandas as pd
 from jaxtyping import Complex
@@ -314,39 +311,6 @@ def benchmark_blockdiag_method(
     ]:
         print(f"{key}: {out[key]}")
 
-    # Plot the truncation spectra
-    # plt.figure(dpi=120)
-    # palette = sns.color_palette()
-    # plt.plot(svals_l_orig, c=palette[0], linestyle=':',  label='original left', alpha=0.5)
-    # plt.plot(svals_m_orig, c=palette[0],                 label='original middle', alpha=0.5)
-    # plt.plot(svals_r_orig, c=palette[0], linestyle='--', label='original right', alpha=0.5)
-    # for i in range(purif.shape[0]):
-    #     plt.plot(svals_l_branches[i], c=palette[i+1], linestyle=':',  label=f'branch {i} left', alpha=0.5)
-    #     plt.plot(svals_m_branches[i], c=palette[i+1],                 label=f'branch {i} middle', alpha=0.5)
-    #     plt.plot(svals_r_branches[i], c=palette[i+1], linestyle='--', label=f'branch {i} right', alpha=0.5)
-    # plt.ylabel('Singular values from Schmidt decomposition')
-    # plt.xlabel('Singular value number')
-    # plt.yscale('log')
-    # plt.legend()
-    # plt.show()
-
-    # rho_orig_expanded  = einsum(orig_expanded,  np.conj(orig_expanded),   ' p1 p2 l r,   p1c p2c l r -> p1 p2 p1c p2c')
-    # rho_purif_expanded = einsum(purif_expanded, np.conj(purif_expanded), 'b p1 p2 l r, b p1c p2c l r -> p1 p2 p1c p2c')
-    # measurement_props_orig = measure.calculate_properties_2site_density_matrix(rho_orig_expanded)
-    # measurement_props_purif = measure.calculate_properties_2site_density_matrix(rho_purif_expanded)
-
-    # eps = 1e-14
-    # measurement_errors = {}
-    # for key in measurement_props_orig:
-    #     measurement_errors[key] = np.abs(measurement_props_orig[key] - measurement_props_purif[key])/(np.abs(measurement_props_orig[key])+eps)
-
-    # for key in measurement_props_orig:
-    #     print(f'    {key}: orig={measurement_props_orig[key]} | purif={measurement_props_purif[key]} | error={measurement_errors[key]}')
-
-    # out.update({str(k) + '_orig' : np.real(v) for k,v in measurement_props_orig.items()})
-    # out.update({str(k) + '_purif' : np.real(v) for k,v in measurement_props_purif.items()})
-    # out.update({str(k) + '_error' : np.real(v) for k,v in measurement_errors.items()})
-
     return out
 
 
@@ -476,7 +440,8 @@ def modify_path_str(current_path, path_str):
     )  # Path(path_str.split('wavefunction_branching\\')[1].replace('\\', '/'))
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
+def main(directory_name: str = "directory"):
     # Block diagonalization methods to try
     methods = get_blockdiag_methods()
 
@@ -493,39 +458,16 @@ if __name__ == "__main__":
     outfolder.mkdir(exist_ok=True)
     outfile = outfolder / f"benchmark_results_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.json"
     directory = json.load(
-        open(current_path / "block_diagonal_test_data/directory.json", mode="rb")
-    )  # block_diagonal_test_data-everything_2024-08-21
+        open(current_path / f"block_diagonal_test_data/{directory_name}.json", mode="rb")
+    )
     print([(x, len(directory[x])) for x in directory])
     directory = pd.DataFrame(directory)
-    # directory = shuffle(directory)
-    # directory.sort_values('second-dominant TM eigenvalue magnitude', inplace=True, ascending=False)
-    # directory.sort_values('dim_L', inplace=True)
-    # directory = directory[directory['kind'] == 'ising_evo']
     print(len(directory))
     directory = directory[directory["t"] >= 2.5]
     directory = directory[directory["dim_L"] > 15]
-    # directory = directory[directory['second-dominant TM eigenvalue magnitude'] >= 0.5]
     print(len(directory))
     print(directory)
 
-    # Filter the directory for what we're testing
-    # directory = directory[directory['scramble_kind'].isin(['UV','null'])]
-    # directory = directory[directory['kind'] == 'ising_evo']
-    # directory = directory.sort_values('t')
-    # Shuffle the directory's rows
-    # directory = directory.iloc[np.random.permutation(len(directory))]
-    # Loop over the directory of sets of "As" matrices to try to simultaneously block-diagonalize
-
-    #     df = directory[[('g0=inf' in x) for x in directory['save_str']]]
-    #     plt.rcParams['figure.figsize'] = [10,10]
-    #     sns.lineplot(df, x='average bond dimension', y='second-dominant TM eigenvalue magnitude', hue='kind', alpha=0.7)#, style='kind')
-    #     plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
-    #     plt.show()
-    #     sns.lineplot(df, x='t', y='second-dominant TM eigenvalue magnitude', hue='kind', alpha=0.7)#, style='kind')
-    #     plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
-    #     plt.show()
-
-    # %%
     i = 0
     spectra_L = []
     spectra_R = []
@@ -626,30 +568,9 @@ if __name__ == "__main__":
         for key, value in row.items():
             spectra[key].append(value)
 
-    # # Plot the spectrum of each test case
-    # plt.rcParams['figure.figsize'] = [10, 9]
-    # shown_artificial = False
-    # shown_natural1 = False
-    # key = 'spectrum_L'
-    # for i in range(len(spectra[key])):
-    #     c = 'purple'
-    #     label = None
-    #     if spectra['form_L'][i] == 'null':
-    #         c = 'red'
-    #         if not shown_artificial:
-    #             label = 'artificial'
-    #             shown_artificial = True
-    #     elif spectra['form_L'][i] == 1.0:
-    #         c = 'blue'
-    #         if not shown_natural1:
-    #             label = 'natural (λ^1.0 - central gauge)'
-    #             shown_natural1 = True
-    #     plt.plot(spectra[key][i], c=c, alpha=0.25, label=label)
-    # plt.ylabel('Singular value')
-    # plt.xlabel('Singular value index')
-    # plt.legend()
-    # plt.yscale('log')
-    # plt.show()
+
+if __name__ == "__main__":
+    fire.Fire(main)
 
 
 # %%

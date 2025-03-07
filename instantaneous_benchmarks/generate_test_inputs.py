@@ -252,6 +252,7 @@ def save_matrices(
     square_blocks: bool = True,
     equal_sized_blocks: bool = True,
     from_frias_perez: bool = False,
+    directory_name: str = "directory",
 ):
     if Bs is not None and scramble_kind != "null":
         X, Y = generate_scrambling_matrices(scramble_kind, dim_L=Bs.shape[1], dim_R=Bs.shape[2])
@@ -361,9 +362,9 @@ def save_matrices(
 
     print(f"save_str: {save_str}")
 
-    with open(Path(folder) / "directory.json", "w", encoding="utf-8") as f:
+    with open(Path(folder) / f"{directory_name}.json", "w", encoding="utf-8") as f:
         json.dump(saves_dict, f, ensure_ascii=False, indent=4)
-    print(f"Saved json to {folder}/directory.json")
+    print(f"Saved json to {folder}/{directory_name}.json")
     # if np.random.random() < 0.1:
     #     vis(Bs, 'Bs '+save_str)
     return saves_dict
@@ -497,65 +498,11 @@ def run_TEBD_ising(
                 chi_max=chi,
                 svd_min=svd_min,
                 form=form,
+                directory_name="directory-ising-evo",
             )
         if chi_terminate_at is not None and np.mean(psi.chi) > chi_terminate_at:
             break
     return saves_dict
-
-
-###################################################
-## REAL MPS INPUT TENSORS FROM MIGUEL FRIAS PEREZ #
-###################################################
-
-# def run_TEBD_frias_perez(N= 400, deltaT=0.01, J = -1.0, g = 2.0, xc = 2000, folder=None, steps_per_output=25, saves_dict=None):
-#     if saves_dict is None:
-#         saves_dict = defaultdict(list)
-#     psi = uMPS.uMPS([ np.ones((4, 1, 1, 1))/2, np.ones((1, 1, 1, 1))])
-#     uOneBody, uTwoBody = uMPS.uMPS.compressedOneBodyMPO(J, g, deltaT), uMPS.uMPS.compressedTwoBodyMPO(J, g, deltaT)
-
-#     np.random.seed(0)
-
-#     res, neg = [], []
-
-#     for step in range(N):
-
-#         # Save the tensor
-#         if step % steps_per_output == 0:
-#             tensor = psi.waveFunction(np.diag(psi.lamb[0]), [psi.A[0]], np.eye(len(psi.lamb[1])))
-#             # tensor.shape = physical, 1, virtual_left, virtual_right
-#             tensor = tensor[:,0,:,:]
-
-#             if tensor.shape[-1] >= 4 and tensor.shape[-2] >= 4:
-#                 saves_dict = save_matrices(
-#                     saves_dict,
-#                     As = tensor,
-#                     svals_L = psi.lamb[0],
-#                     svals_R = psi.lamb[0],
-#                     N = tensor.shape[0],
-#                     folder=folder,
-#                     subfolder = 'ising_evo',
-#                     t = step*deltaT,
-#                     dt = deltaT,
-#                     J = J,
-#                     g = g,
-#                     L = 2,
-#                     chi_max = xc,
-#                     form = (1.0, 1.0),
-#                     from_frias_perez = "true",
-#                 )
-#                 props = measure_psi(tebd_engine.psi, check=False)
-#                 for key in props:
-#                     saves_dict[key].append(props[key])
-
-#         # Apply the MPOs that implement the evolution
-
-#         psi.applyMPO(uOneBody)
-#         psi.applyMPO(uTwoBody)
-#         psi.truncate(xc1 = xc, xc2 = xc, initGuess = True)
-
-#         print(step, psi.A[0].shape, psi.A[1].shape, psi.lamb[0].shape)
-
-#     return saves_dict
 
 
 def run_TEBD_random_evo(
@@ -567,7 +514,7 @@ def run_TEBD_random_evo(
     t_evo=5.0,  # total time to evolve for
     steps_per_output=100,
     N_sites=2,
-    folder="block_diagonal_test_data",
+    folder: str | Path = "block_diagonal_test_data",
     **kwargs,
 ):
     if saves_dict is None:
@@ -643,131 +590,18 @@ def generate_scrambling_matrices(
     assert False, f"Invalid scramble_kind: {scramble_kind}"
 
 
-# def generate_test_suite():
 if __name__ == "__main__":
-    # block_sizes_square = [[1,1], [2,2], [3,3], [8,8], [16,16], [32,32], [64, 64],
-    #                       [1,2], [8,3], [32,16], [64, 4],
-    #                       [1, 10, 3, 32, 32], [5, 5, 5, 5, 5], [10, 10, 20, 20]]
-    # block_sizes_equal = [[2,2], [4,4], [8,8], [16,16], [32,32]]
-    # block_sizes_all = block_sizes_equal + [[2,4], [4,3], [4,6], [2,8], [7,8], [16,6], [16,10], [14, 16], [16, 32], [32,8], [32,30]]
-    # block_sizes_all += [[[3,2],[2,3]], [[4,6],[4,4]], [[10,12],[4,10]], [[4,8],[4,8]], [[8,5],[4,7]]]
-    # N_matrices = [4]#[2, 4, 16]
-    noises_introduced = [0, 1e-8, 1e-6, 1e-4, 1e-2]  # [1e-6]#
-    # bell_like = True
-
-    saves_dict = defaultdict(list)
     current_path = Path(__file__).parent.absolute()
     folder = current_path / "block_diagonal_test_data"
-    # for scramble_kind in ["UV"]:
-    #     # Generate with block_diagonal_matrices()
-    #     for block_sizes in block_sizes_all:
-    #         if isinstance(block_sizes[0], int):
-    #             square_blocks = "true"
-    #             equal_sized_blocks = "true" if block_sizes[0]==block_sizes[1] else "false"
-    #         else:
-    #             square_blocks = "false"
-    #             equal_sized_blocks = "false"
-    #         for N in N_matrices:
-    #             for noise in noises_introduced:
-    #                 for bell_like in ["true", "false"]:
-    #                     if bell_like == "true" and equal_sized_blocks == "false":
-    #                         print(f'skipping bell_like with block sizes {block_sizes}')
-    #                     else:
-    #                         Bs = block_diagonal_matrices(block_sizes=block_sizes, N=N, noise_introduced = noise)
-    #                         if bell_like == "true":
-    #                             Bs[:, Bs.shape[-2]//2:Bs.shape[-2], Bs.shape[-1]//2:Bs.shape[-1]] = Bs[:, :Bs.shape[-2]//2, :Bs.shape[-1]//2] * np.random.randn()
-    #                         saves_dict = save_matrices(
-    #                             saves_dict,
-    #                             Bs = Bs,
-    #                             scramble_kind=scramble_kind,
-    #                             folder = folder,
-    #                             subfolder = 'random',
-    #                             block_sizes = block_sizes,
-    #                             N = N,
-    #                             noise = noise,
-    #                             bell_like = bell_like,
-    #                             square_blocks = square_blocks,
-    #                             equal_sized_blocks = equal_sized_blocks,
-    #                         )
+    folder.mkdir(parents=True, exist_ok=True)
 
-    #                         Bs = block_diagonal_matrices_exp_decaying_spectrum(block_sizes=block_sizes, N=N, noise_introduced = noise)
-    #                         if bell_like == "true":
-    #                             Bs[:, Bs.shape[-2]//2:, Bs.shape[-1]//2:] = Bs[:, :Bs.shape[-2]//2, :Bs.shape[-1]//2] * np.random.randn()
-    #                         saves_dict = save_matrices(
-    #                             saves_dict,
-    #                             Bs = Bs,
-    #                             scramble_kind=scramble_kind,
-    #                             folder = folder,
-    #                             subfolder = 'exp_decaying_spectrum',
-    #                             block_sizes = block_sizes,
-    #                             N = N,
-    #                             noise = noise,
-    #                             bell_like = bell_like,
-    #                             square_blocks = square_blocks,
-    #                             equal_sized_blocks = equal_sized_blocks,
-    #                         )
-
-    # Ds = [4, 10, 30, 80]
-    # gammas = [0.5, 0.1, 0.01]
-    # block_diagonal_amounts = [0, 1, 1e-3]
-    # noise = 1e-6
-    # subfolder = 'diagonal_dominant_matrices'
-    # for N in N_matrices:
-    #     for D in Ds:
-    #         block_sizes = [int(D/2), D-int(D/2)]
-    #         for gamma in gammas:
-    #             for block_diagonal_amount in block_diagonal_amounts:
-    #                 Bs = diagonal_dominant_matrices(D=D, N=N, γ=gamma, noise_introduced = noise, diagonal_width=int(D/2))
-    #                 if block_diagonal_amount > 0:
-    #                     Bs += block_diagonal_amount * block_diagonal_matrices(block_sizes=np.array(block_sizes), N=N, noise_introduced = 0)
-
-    #                 saves_dict = save_matrices(
-    #                     saves_dict,
-    #                     Bs = Bs,
-    #                     scramble_kind=scramble_kind,
-    #                     folder = folder,
-    #                     subfolder = subfolder,
-    #                     block_sizes = block_sizes,
-    #                     N = N,
-    #                     noise = noise,
-    #                     gamma = gamma
-    #                 )
-
-    # ds = [2, 4, 8, 12]
-    # decayrates = [2.5, 1.5]
-    # noise = 1e-6
-    # subfolder = 'exp_decaying_spectrum'
-    # for N in N_matrices:
-    #     for  d in ds:
-    #         block_sizes = [d, d]
-    #         for decayrate in decayrates:
-    #             Bs = block_diagonal_matrices_exp_decaying_spectrum(d=d, N=N, decayrate=decayrate, noise_introduced = noise)
-    #             saves_dict = save_matrices(
-    #                 saves_dict,
-    #                 Bs = Bs,
-    #                 scramble_kind=scramble_kind,
-    #                 folder = folder,
-    #                 subfolder = subfolder,
-    #                 block_sizes = block_sizes,
-    #                 N = N,
-    #                 noise = noise,
-    #                 decayrate = decayrate
-    #             )
-
-    # for chi_max in [30, 50, 100, 150]:
-    #     for i in range(20):
-    #         for model_name in ['tf_ising', 'spins', 'aklt']:
-    #             print(f'Running {model_name}, chi_max = {chi_max}')
-    #             saves_dict = run_TEBD_random_evo(model_name, saves_dict=saves_dict, folder=folder, chi_max=chi_max)
-    #             # sns.scatterplot(saves_dict, x='average bond dimension', y='second-dominant TM eigenvalue magnitude', hue='kind' )
-    #             # plt.show()
-    #             # sns.scatterplot(saves_dict, x='entanglement entropy', y='second-dominant TM eigenvalue magnitude', hue='kind' )
-    #             # plt.show()
-    #             print(saves_dict)
-
+    print("\n\n\n\n\n\n--------------------------------")
+    print("Running ising quench evolutions")
+    print("--------------------------------\n\n")
+    saves_dict_ising = defaultdict(list)
     for chi_max in [50, 100, 200, 400]:
         print(f"Running ising evo with chi_max = {chi_max}")
-        saves_dict = run_TEBD_ising(
+        saves_dict_ising = run_TEBD_ising(
             psi=None,
             model=None,
             chi=chi_max,  # bond dimension
@@ -782,15 +616,21 @@ if __name__ == "__main__":
             g=2.0,  # ising model σx term strength
             folder=folder,
             save_forms=[(1.0, 1.0)],
-            saves_dict=saves_dict,
+            saves_dict=saves_dict_ising,
         )
+    print(saves_dict_ising)
 
-    print(saves_dict)
-
-    # return saves_dict
-
-
-# if __name__ == "__main__":
-#     saves_dict = generate_test_suite()
+    print("\n\n\n\n\n\n--------------------------------")
+    print("Running random quench evolutions")
+    print("--------------------------------\n\n")
+    saves_dict_random = defaultdict(list)
+    for chi_max in [30, 50, 100, 150]:
+        for i in range(20):
+            for model_name in ["tf_ising", "spins", "aklt"]:
+                print(f"Running {model_name}, chi_max = {chi_max}")
+                saves_dict_random = run_TEBD_random_evo(
+                    model_name, saves_dict=saves_dict_random, folder=folder, chi_max=chi_max
+                )
+                print(saves_dict_random)
 
 # %%
