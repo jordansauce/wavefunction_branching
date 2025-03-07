@@ -15,6 +15,7 @@ from functools import partial
 from pathlib import Path
 from typing import Literal
 
+import fire
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -1664,33 +1665,21 @@ def print_args_kwargs_then_run_main(*args, **kwargs):
 
 
 if __name__ == "__main__":
-    # fire.Fire(print_args_kwargs_then_run_main)
+    fire.Fire(print_args_kwargs_then_run_main)
 
-    for iterative_method in ["vertical_svd_micro_bsvd"]:
-        print_args_kwargs_then_run_main(
-            iterative_method,
-            "graddesc_global_reconstruction_non_interfering",
-            t_evo=4.0,
-            chi_max=30,
-            chi_to_branch=30,
-            max_branches=100,
-            n_sites=45,
-            BC_MPS="finite",
-            maxiter_heuristic=500,
-            min_time_between_branching_attempts=2,
-            synchronization_time=5,
-        )
-
-    # for iterative_method in 'bell_discard_classical', 'bell_keep_classical', 'vertical_svd_micro_bsvd', 'pulling_through':
-    #     print_args_kwargs_then_run_main(iterative_method, None, t_evo = 2.6, chi_max=30, chi_to_branch=30, max_branches=100, n_sites=30, BC_MPS='finite', maxiter_heuristic=500, min_time_between_branching_attempts=2, synchronization_time=5)
-
-    # for graddesc_method in 'rho_LM_MR_trace_norm_discard_classical_identical_blocks', 'rho_LM_MR_trace_norm_identical_blocks', 'rho_half_LM_MR_trace_norm', 'graddesc_global_reconstruction_non_interfering', 'graddesc_global_reconstruction_split_non_interfering':
-    #     print_args_kwargs_then_run_main('pulling_through', graddesc_method, t_evo = 2.6, chi_max=30, chi_to_branch=30, max_branches=100, n_sites=30, BC_MPS='finite', maxiter_heuristic=500, min_time_between_branching_attempts=2, synchronization_time=5)
-
-    # print_args_kwargs_then_run_main(t_evo = 3.3, chi_max=40, branch_function_name='bell', chi_to_branch=35, max_branches=2000, n_sites=2, BC_MPS='infinite', tolEntropy=1e-2, tolNegativity=-999.999, maxiter_heuristic=400, min_time_between_branching_attempts=0.2, synchronization_time=4)
-    # print_args_kwargs_then_run_main(t_evo = 5, chi_max=50, branch_function_name='bell_keep_classical', chi_to_branch=30, max_branches=100, n_sites=30, BC_MPS='finite', tolEntropy=1.0, tolNegativity=-999.999, maxiter_heuristic=800, min_time_between_branching_attempts=0.6, synchronization_time=3)
-
-    # print_args_kwargs_then_run_main(t_evo = 1.9, chi_max=40, branch_function_name='blockdiag_2svals_rho_half', chi_to_branch=3500, max_branches=1, n_sites=6, BC_MPS='infinite', tolEntropy=2e-2, tolNegativity=-999.999, maxiter_heuristic=400, min_time_between_branching_attempts=0.25, synchronization_time=10.0)
-    # print_args_kwargs_then_run_main(t_evo = 4, chi_max=40, branch_function_name='bsvd', chi_to_branch=35, max_branches=10000, n_sites=20, BC_MPS='finite', max_trace_distance= 0.01, min_time_between_branching_attempts=0.2)
+    # for iterative_method in ["vertical_svd_micro_bsvd"]:
+    #     print_args_kwargs_then_run_main(
+    #         iterative_method,
+    #         "graddesc_global_reconstruction_non_interfering",
+    #         t_evo=4.0,
+    #         chi_max=30,
+    #         chi_to_branch=30,
+    #         max_branches=100,
+    #         n_sites=45,
+    #         BC_MPS="finite",
+    #         maxiter_heuristic=500,
+    #         min_time_between_branching_attempts=2,
+    #         synchronization_time=5,
+    #     )
 
 # %%

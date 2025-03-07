@@ -95,9 +95,9 @@ def expand_S(
     return S_expanded
 
 
-def bell_decomp_iterative_discard_classical(
+def bell_discard_classical(
     As: MatrixStack, n_steps=500
-) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor]:
+) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor, dict]:
     tensor = utils.make_square(As, 2)
     L, S, R, info = bell_identical_blocks.combined_optimization(
         tensor,
@@ -109,12 +109,12 @@ def bell_decomp_iterative_discard_classical(
     )
     assert len(S.shape) == 3  # dPhys, dSlow, dSlow
     S_expanded = expand_S(S)
-    return make_S_square(L, S_expanded, R)
+    return *make_S_square(L, S_expanded, R), info
 
 
-def bell_decomp_iterative_keep_classical(
+def bell_keep_classical(
     As: MatrixStack, n_steps=500
-) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor]:
+) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor, dict]:
     tensor = utils.make_square(As, 2)
     L, S, R, info = bell_identical_blocks.combined_optimization(
         tensor,
@@ -126,12 +126,50 @@ def bell_decomp_iterative_keep_classical(
     )
     assert len(S.shape) == 3  # dPhys, dSlow, dSlow
     S_expanded = expand_S(S)
-    return make_S_square(L, S_expanded, R)
+    return *make_S_square(L, S_expanded, R), info
+
+
+def bell_original_threshold_discard_classical(
+    As: MatrixStack, n_steps=500
+) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor, dict]:
+    tensor = utils.make_square(As, 2)
+    L, S, R, info = bell_identical_blocks.combined_optimization(
+        tensor,
+        n_attempts_iterative=1,
+        n_iterations_per_attempt=n_steps,
+        early_stopping=False,
+        maxiter_heuristic=0,
+        keep_classical_correlations=False,
+        tolEntropy=1e-2,
+        tolNegativity=0.2,
+    )
+    assert len(S.shape) == 3  # dPhys, dSlow, dSlow
+    S_expanded = expand_S(S)
+    return *make_S_square(L, S_expanded, R), info
+
+
+def bell_original_threshold_keep_classical(
+    As: MatrixStack, n_steps=500
+) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor, dict]:
+    tensor = utils.make_square(As, 2)
+    L, S, R, info = bell_identical_blocks.combined_optimization(
+        tensor,
+        n_attempts_iterative=1,
+        n_iterations_per_attempt=n_steps,
+        early_stopping=False,
+        maxiter_heuristic=0,
+        keep_classical_correlations=True,
+        tolEntropy=1e-2,
+        tolNegativity=0.2,
+    )
+    assert len(S.shape) == 3  # dPhys, dSlow, dSlow
+    S_expanded = expand_S(S)
+    return *make_S_square(L, S_expanded, R), info
 
 
 def iterative_svd_micro_bsvd(
     As: MatrixStack, n_steps=500
-) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor]:
+) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor, dict]:
     L, M, R = vertical_svd.block_svd(As, n_iters=n_steps, initialize="bsvd", tolerance=0)
     # U_purified.shape =                     branch, L, l
     # blockdiag_purified.shape = branch, n_matrices, l, r
@@ -140,12 +178,12 @@ def iterative_svd_micro_bsvd(
     # BlockDiagTensor =           Complex[np.ndarray, "dPhys nBranches dSlow dSlow"]
     # RightSplittingTensor =      Complex[np.ndarray, "nBranches dSlow dVirt"]
     S = rearrange(M, "b p l r -> p b l r")
-    return make_S_square(L, S, R)
+    return *make_S_square(L, S, R), {}
 
 
 def iterative_pulling_through_z0_dim_half(
     As: MatrixStack, n_steps=500
-) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor]:
+) -> tuple[LeftSplittingTensor, BlockDiagTensor, RightSplittingTensor, dict]:
     # return pulling_through.to_purification(As, svals_power = 0.0, equal_sized_blocks=True, verbose=False)
     kraus_L, kraus_R = pulling_through.find_simultaneous_kraus_operators(
         As, svals_power=0.0, max_iters=n_steps
@@ -158,7 +196,7 @@ def iterative_pulling_through_z0_dim_half(
     # RightSplittingTensor =      Complex[np.ndarray, "nBranches dSlow dVirt"]
     L, M, R = pulling_through.kraus_operators_to_LMR(As, kraus_L, kraus_R, equal_sized_blocks=True)
     S = rearrange(M, "b p l r -> p b l r")
-    return make_S_square(L, S, R)
+    return *make_S_square(L, S, R), {}
 
 
 ############################################################################################################
@@ -294,6 +332,8 @@ def branch_from_theta(
     | Literal[
         "bell_discard_classical",
         "bell_keep_classical",
+        "bell_original_threshold_discard_classical",
+        "bell_original_threshold_keep_classical",
         "vertical_svd_micro_bsvd",
         "pulling_through",
     ],
@@ -323,8 +363,10 @@ def branch_from_theta(
                 )
 
     fn_dict_iterative = {
-        "bell_discard_classical": bell_decomp_iterative_discard_classical,
-        "bell_keep_classical": bell_decomp_iterative_keep_classical,
+        "bell_discard_classical": bell_discard_classical,
+        "bell_keep_classical": bell_keep_classical,
+        "bell_original_threshold_discard_classical": bell_original_threshold_discard_classical,
+        "bell_original_threshold_keep_classical": bell_original_threshold_keep_classical,
         "vertical_svd_micro_bsvd": iterative_svd_micro_bsvd,
         "pulling_through": iterative_pulling_through_z0_dim_half,
     }
@@ -350,14 +392,15 @@ def branch_from_theta(
     keep_classical = True
     if graddesc_method == "rho_LM_MR_trace_norm_discard_classical_identical_blocks":
         keep_classical = False
-    if graddesc_method is None and iterative_method == "bell_discard_classical":
+    if graddesc_method is None and "discard_classical" in iterative_method:
         keep_classical = False
-
     fn_graddesc = fn_dict_graddesc[graddesc_method]
+
     norm_orig = einsum(theta_scrambled, np.conj(theta_scrambled), "p l r, p l r -> ")
     tensor = utils.make_square(theta_scrambled, 2)
+
     t1 = time.time()
-    L, S, R = fn_iterative(tensor, n_steps=n_steps_iterative)
+    L, S, R, info = fn_iterative(tensor, n_steps=n_steps_iterative)
     t2 = time.time()
 
     # # Normalize the purification
@@ -367,7 +410,7 @@ def branch_from_theta(
 
     theta_purified = fn_graddesc(tensor, L, S, R, n_steps=n_steps_graddesc)
     t3 = time.time()
-    return theta_purified, {"iterative_time": t2 - t1, "graddesc_time": t3 - t2}
+    return theta_purified, {"iterative_time": t2 - t1, "graddesc_time": t3 - t2, **info}
 
 
 def branch(

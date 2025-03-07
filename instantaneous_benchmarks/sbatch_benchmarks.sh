@@ -5,6 +5,8 @@
 #SBATCH --time=7-00:00:00
 
 pip install --upgrade pip
+conda create -n branching python=3.12 -y
+conda activate branching
 pip uninstall wavefunction_branching
 make install
 

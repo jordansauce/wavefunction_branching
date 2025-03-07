@@ -37,9 +37,8 @@ params_orig = dict(
     max_branching_attempts=None,
     stop_before_branching=False,
     maxiter_heuristic=6000,
-    necessary_local_truncation_improvement_factor=0.0,
+    necessary_local_truncation_improvement_factor=1.0,
     necessary_global_truncation_improvement_factor=1.0,
-    name="",
     seed=seed,
 )
 
@@ -73,7 +72,7 @@ params_orig = dict(
 
 runs = []
 for n_sites in [80, 128]:
-    for chi_max in [50, 100, 200]:
+    for chi_max in [50, 100]:
         runs += [
             dict(
                 iterative_method=None,
@@ -147,6 +146,78 @@ for n_sites in [80, 128]:
             #     n_sites = n_sites,
             #     t_evo = (0.25*n_sites - 2.0)
             # ),
+            # Original threshold methods
+            dict(
+                iterative_method="bell_original_threshold_discard_classical",
+                graddesc_method=None,
+                chi_max=chi_max,
+                chi_to_branch=chi_max,  # int(chi_max*0.75),
+                n_sites=n_sites,
+                t_evo=(0.25 * n_sites - 2.0),
+                necessary_local_truncation_improvement_factor=0.0,
+                necessary_global_truncation_improvement_factor=0.0,
+            ),
+            dict(
+                iterative_method="bell_original_threshold_discard_classical",
+                graddesc_method="rho_LM_MR_trace_norm_discard_classical_identical_blocks",
+                chi_max=chi_max,
+                chi_to_branch=chi_max,  # int(chi_max*0.75),
+                n_sites=n_sites,
+                t_evo=(0.25 * n_sites - 2.0),
+                necessary_local_truncation_improvement_factor=0.0,
+                necessary_global_truncation_improvement_factor=0.0,
+            ),
+            dict(
+                iterative_method="bell_original_threshold_keep_classical",
+                graddesc_method=None,
+                chi_max=chi_max,
+                chi_to_branch=chi_max,  # int(chi_max*0.75),
+                n_sites=n_sites,
+                t_evo=(0.25 * n_sites - 2.0),
+                necessary_local_truncation_improvement_factor=0.0,
+                necessary_global_truncation_improvement_factor=0.0,
+            ),
+            dict(
+                iterative_method="bell_original_threshold_keep_classical",
+                graddesc_method="graddesc_global_reconstruction_non_interfering",
+                chi_max=chi_max,
+                chi_to_branch=chi_max,  # int(chi_max*0.75),
+                n_sites=n_sites,
+                t_evo=(0.25 * n_sites - 2.0),
+                necessary_local_truncation_improvement_factor=0.0,
+                necessary_global_truncation_improvement_factor=0.0,
+            ),
+            dict(
+                iterative_method="bell_original_threshold_keep_classical",
+                graddesc_method="graddesc_global_reconstruction_split_non_interfering",
+                chi_max=chi_max,
+                chi_to_branch=chi_max,  # int(chi_max*0.75),
+                n_sites=n_sites,
+                t_evo=(0.25 * n_sites - 2.0),
+                necessary_local_truncation_improvement_factor=0.0,
+                necessary_global_truncation_improvement_factor=0.0,
+            ),
+            dict(
+                iterative_method="bell_original_threshold_keep_classical",
+                graddesc_method="rho_LM_MR_trace_norm_identical_blocks",
+                chi_max=chi_max,
+                chi_to_branch=chi_max,  # int(chi_max*0.75),
+                n_sites=n_sites,
+                t_evo=(0.25 * n_sites - 2.0),
+                necessary_local_truncation_improvement_factor=0.0,
+                necessary_global_truncation_improvement_factor=0.0,
+            ),
+            dict(
+                iterative_method="bell_original_threshold_keep_classical",
+                graddesc_method="rho_LM_MR_trace_norm",
+                chi_max=chi_max,
+                chi_to_branch=chi_max,  # int(chi_max*0.75),
+                n_sites=n_sites,
+                t_evo=(0.25 * n_sites - 2.0),
+                necessary_local_truncation_improvement_factor=0.0,
+                necessary_global_truncation_improvement_factor=0.0,
+            ),
+            # Other methods
             dict(
                 iterative_method="pulling_through",
                 graddesc_method=None,
@@ -266,7 +337,7 @@ cp "$0" "$outfolder"/
 
 """
     # -m cProfile -s time
-    outstr += "python wavefunction_branching/branching_scripts/evolve_and_branch_finite.py "
+    outstr += "python wavefunction_branching/evolve_and_branch_finite.py "
     outstr += " --name=$name "
     outstr += " --outfolder=$outfolder "
 
