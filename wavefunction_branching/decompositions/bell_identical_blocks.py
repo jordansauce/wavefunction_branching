@@ -200,17 +200,17 @@ def mera_like_optimization(
         w = np.linalg.eigh(rearrange(rho_fast, "bl br blc brc -> (bl blc) (br brc)"))[0]
         w = w / np.sum(w)
 
-        overlaps = einsum(
-            u1,
-            top,
-            bottom,
-            u2,
-            np.conj(u1),
-            np.conj(top),
-            np.conj(bottom),
-            np.conj(u2),
-            "L l b,  p l r,  b,       R r b, L lc bc,      p lc rc,       bc,               R rc bc  ->  b bc",
-        )  # type: ignore
+        # overlaps = einsum(
+        #     u1,
+        #     top,
+        #     bottom,
+        #     u2,
+        #     np.conj(u1),
+        #     np.conj(top),
+        #     np.conj(bottom),
+        #     np.conj(u2),
+        #     "L l b,  p l r,  b,       R r b, L lc bc,      p lc rc,       bc,               R rc bc  ->  b bc",
+        # )  # type: ignore
         # print('        ee =', -np.sum(np.log2(sch)*sch), ', logNeg =', np.log2(np.sum(abs(w))), 2*np.log2(np.sum(np.linalg.svd(v)[1])))
         # print(f'        norms = {np.diag(overlaps)}, overlaps = {[overlaps[0,1], overlaps[1,0]]}')
         # print(f'        vertical spectrum = {np.sqrt(sch[::-1])}, sum**2 = {np.sum(sch[:-1])}, sum = {np.sum(sch)}')

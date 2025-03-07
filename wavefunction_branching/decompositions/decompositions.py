@@ -141,7 +141,6 @@ def bell_original_threshold_discard_classical(
         maxiter_heuristic=0,
         keep_classical_correlations=False,
         tolEntropy=1e-2,
-        tolNegativity=0.2,
     )
     assert len(S.shape) == 3  # dPhys, dSlow, dSlow
     S_expanded = expand_S(S)
@@ -160,7 +159,6 @@ def bell_original_threshold_keep_classical(
         maxiter_heuristic=0,
         keep_classical_correlations=True,
         tolEntropy=1e-2,
-        tolNegativity=0.2,
     )
     assert len(S.shape) == 3  # dPhys, dSlow, dSlow
     S_expanded = expand_S(S)
