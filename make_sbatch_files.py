@@ -46,26 +46,26 @@ params_orig = dict(
 #     (None, None),
 #     # ('bell_discard_classical', None),
 #     # ('bell_keep_classical', None),
-#     ('vertial_svd_micro_bsvd', None),
+#     ('vertical_svd_micro_bsvd', None),
 #     # ('pulling_through', None),
 
 #     # ('bell_discard_classical', 'rho_LM_MR_trace_norm_discard_classical_identical_blocks'),
 #     # ('bell_keep_classical', 'rho_LM_MR_trace_norm_identical_blocks'),
 
 #     # ('bell_keep_classical', 'rho_LM_MR_trace_norm'),
-#     # ('vertial_svd_micro_bsvd', 'rho_LM_MR_trace_norm'),
+#     # ('vertical_svd_micro_bsvd', 'rho_LM_MR_trace_norm'),
 #     # ('pulling_through', 'rho_LM_MR_trace_norm'),
 
 #     # ('bell_keep_classical', 'graddesc_global_reconstruction_split_non_interfering'),
-#     # # ('vertial_svd_micro_bsvd', 'graddesc_global_reconstruction_split_non_interfering'),
+#     # # ('vertical_svd_micro_bsvd', 'graddesc_global_reconstruction_split_non_interfering'),
 #     # # # ('pulling_through', 'graddesc_global_reconstruction_split_non_interfering'),
 
 #     # ('bell_keep_classical', 'graddesc_global_reconstruction_non_interfering'),
-#     # ('vertial_svd_micro_bsvd', 'graddesc_global_reconstruction_non_interfering'),
+#     # ('vertical_svd_micro_bsvd', 'graddesc_global_reconstruction_non_interfering'),
 #     # ('pulling_through', 'graddesc_global_reconstruction_non_interfering'),
 
 #     # ('bell_keep_classical', 'rho_half_LM_MR_trace_norm'),
-#     # ('vertial_svd_micro_bsvd', 'rho_half_LM_MR_trace_norm'),
+#     # ('vertical_svd_micro_bsvd', 'rho_half_LM_MR_trace_norm'),
 #     # ('pulling_through', 'rho_half_LM_MR_trace_norm'),
 # ]
 
@@ -259,7 +259,7 @@ for n_sites in [80, 128]:
             #     t_evo = (0.25*n_sites - 2.0)
             # ),
             dict(
-                iterative_method="vertial_svd_micro_bsvd",
+                iterative_method="vertical_svd_micro_bsvd",
                 graddesc_method=None,
                 chi_max=chi_max,
                 chi_to_branch=chi_max,  # int(chi_max*0.75),
@@ -267,7 +267,7 @@ for n_sites in [80, 128]:
                 t_evo=(0.25 * n_sites - 2.0),
             ),
             dict(
-                iterative_method="vertial_svd_micro_bsvd",
+                iterative_method="vertical_svd_micro_bsvd",
                 graddesc_method="graddesc_global_reconstruction_non_interfering",
                 chi_max=chi_max,
                 chi_to_branch=chi_max,  # int(chi_max*0.75),
@@ -275,7 +275,7 @@ for n_sites in [80, 128]:
                 t_evo=(0.25 * n_sites - 2.0),
             ),
             dict(
-                iterative_method="vertial_svd_micro_bsvd",
+                iterative_method="vertical_svd_micro_bsvd",
                 graddesc_method="graddesc_global_reconstruction_split_non_interfering",
                 chi_max=chi_max,
                 chi_to_branch=chi_max,  # int(chi_max*0.75),
@@ -283,7 +283,7 @@ for n_sites in [80, 128]:
                 t_evo=(0.25 * n_sites - 2.0),
             ),
             dict(
-                iterative_method="vertial_svd_micro_bsvd",
+                iterative_method="vertical_svd_micro_bsvd",
                 graddesc_method="rho_LM_MR_trace_norm",
                 chi_max=chi_max,
                 chi_to_branch=chi_max,  # int(chi_max*0.75),
@@ -291,7 +291,7 @@ for n_sites in [80, 128]:
                 t_evo=(0.25 * n_sites - 2.0),
             ),
             # dict(
-            #     iterative_method = 'vertial_svd_micro_bsvd',
+            #     iterative_method = 'vertical_svd_micro_bsvd',
             #     graddesc_method = 'rho_half_LM_MR_trace_norm',
             #     chi_max = chi_max,
             #     chi_to_branch = chi_max,  # int(chi_max*0.75),

@@ -366,7 +366,7 @@ def get_blockdiag_methods() -> dict[str, Callable[[np.ndarray], PurificationMatr
     def bell_keep_classical__rho_LM_MR_trace_norm(As: MatrixStack) -> PurificationMatrixStack:
         return branch_from_theta(As, "bell_keep_classical", "rho_LM_MR_trace_norm")[0]
 
-    def vertial_svd_micro_bsvd__rho_LM_MR_trace_norm(As: MatrixStack) -> PurificationMatrixStack:
+    def vertical_svd_micro_bsvd__rho_LM_MR_trace_norm(As: MatrixStack) -> PurificationMatrixStack:
         return branch_from_theta(As, "vertical_svd_micro_bsvd", "rho_LM_MR_trace_norm")[0]
 
     def pulling_through__rho_LM_MR_trace_norm(As: MatrixStack) -> PurificationMatrixStack:
@@ -375,7 +375,7 @@ def get_blockdiag_methods() -> dict[str, Callable[[np.ndarray], PurificationMatr
     # def bell_keep_classical__rho_half_LM_MR_trace_norm(As: MatrixStack) -> PurificationMatrixStack:
     #     return branch_from_theta(As, "bell_keep_classical", "rho_half_LM_MR_trace_norm")[0]
 
-    # def vertial_svd_micro_bsvd__rho_half_LM_MR_trace_norm(As: MatrixStack) -> PurificationMatrixStack:
+    # def vertical_svd_micro_bsvd__rho_half_LM_MR_trace_norm(As: MatrixStack) -> PurificationMatrixStack:
     #     return branch_from_theta(As, "vertical_svd_micro_bsvd", "rho_half_LM_MR_trace_norm")[0]
 
     # def pulling_through__rho_half_LM_MR_trace_norm(As: MatrixStack) -> PurificationMatrixStack:
@@ -388,7 +388,7 @@ def get_blockdiag_methods() -> dict[str, Callable[[np.ndarray], PurificationMatr
             As, "bell_keep_classical", "graddesc_global_reconstruction_non_interfering"
         )[0]
 
-    def vertial_svd_micro_bsvd__graddesc_global_reconstruction_non_interfering(
+    def vertical_svd_micro_bsvd__graddesc_global_reconstruction_non_interfering(
         As: MatrixStack,
     ) -> PurificationMatrixStack:
         return branch_from_theta(
@@ -409,7 +409,7 @@ def get_blockdiag_methods() -> dict[str, Callable[[np.ndarray], PurificationMatr
             As, "bell_keep_classical", "graddesc_global_reconstruction_split_non_interfering"
         )[0]
 
-    def vertial_svd_micro_bsvd__graddesc_global_reconstruction_split_non_interfering(
+    def vertical_svd_micro_bsvd__graddesc_global_reconstruction_split_non_interfering(
         As: MatrixStack,
     ) -> PurificationMatrixStack:
         return branch_from_theta(
