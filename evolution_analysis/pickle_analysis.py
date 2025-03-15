@@ -13,6 +13,8 @@ import pandas as pd
 from natsort import natsorted
 from tqdm.auto import tqdm
 
+from wavefunction_branching.evolve_and_branch_finite import BranchValues
+
 NOW = datetime.now().strftime("%Y-%m-%d")
 
 
@@ -72,8 +74,8 @@ def best_fit_lines(x_values, y_values):
     return ms, cs
 
 
-def extrapolate_analytic_results(operator):
-    analytic_results_together, Ls = get_analytic_results_together(operator)
+def extrapolate_analytic_results(analytic_files):
+    analytic_results_together, Ls = get_analytic_results_together(analytic_files)
     assert analytic_results_together is not None
     _, analytic_results_extrapolated = best_fit_lines(1.0 / Ls, analytic_results_together[:, 1:])
     return np.concatenate(
@@ -139,7 +141,7 @@ if __name__ == "__main__":
             if filename not in dont_plot:
                 try:
                     with open(pickle_file, "rb") as f:
-                        branch_values_raw = pickle.load(f)
+                        branch_values_raw: BranchValues = pickle.load(f)
                 except Exception as e:
                     error_files.append((str(pickle_file), "Loading error", str(e)))
                     print(f"error loading {filename}")
@@ -160,6 +162,7 @@ if __name__ == "__main__":
 
                 # Combine the measurements for each of the operators
                 try:
+                    assert branch_values_raw.df_branch_values is not None
                     for operator in operators:
                         ys = [
                             np.array(x).item().real
@@ -185,6 +188,7 @@ if __name__ == "__main__":
                     )
                 )
                 # branch_values_combined.append(pd.DataFrame({operator: np.array(branching_mps.branch_values.df_combined_values[operator]) for operator in ['time'] + operators}))
+                assert branch_values_raw.df_combined_values is not None
                 branch_values_combined.append(branch_values_raw.df_combined_values)
     max_t = max(t_maxs)
 
@@ -199,7 +203,9 @@ if __name__ == "__main__":
                 + "_L_*.npy"
             )
             print(f"filename = {filename}")
-            analytic_files = natsorted(glob.glob(f"exact/results/{filename}"))[1:]
+            analytic_files = natsorted(
+                glob.glob(str(WORKSPACE_PATH / f"exact/results/{filename}"))
+            )[1:]
             print(f"analytic_files = {analytic_files}")
             j = 0
             for analytic_file in analytic_files:
@@ -220,7 +226,7 @@ if __name__ == "__main__":
                 .replace(".", "")
                 .replace("*", "#")
             )
-            outfolder = Path(f"evolution_analysis/plots/{search_str_safe}/")
+            outfolder = WORKSPACE_PATH / f"evolution_analysis/plots/{search_str_safe}/"
             outfolder.mkdir(parents=True, exist_ok=True)
 
             keywords = [
@@ -322,7 +328,7 @@ if __name__ == "__main__":
                     print(traceback.format_exc())
                     continue
 
-            errors_file = Path(f"evolution_analysis/data/{NOW}/errors.pkl")
+            errors_file = WORKSPACE_PATH / f"evolution_analysis/data/{NOW}/errors.pkl"
             errors_file.parent.mkdir(parents=True, exist_ok=True)
             min_len = 1e10
             for key in errors_data.keys():
@@ -341,3 +347,5 @@ if __name__ == "__main__":
             print("-" * 80)
     else:
         print("\nNo errors encountered during processing.")
+
+# %%

@@ -71,6 +71,11 @@ select = [
 # Enable reformatting of code snippets in docstrings.
 docstring-code-format = true
 
+# Disable the "unused import" rule
+[tool.ruff.lint.per-file-ignores]
+"*.py" = ["F401"]  # F401 is the code for unused imports
+
+
 [tool.ruff.lint.isort]
 known-third-party = ["wandb"]
 

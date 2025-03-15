@@ -3,7 +3,9 @@
 # This script plots the errors in the expectation values over different runs, as calculated in pickle_analysis.py
 
 import copy
+import glob
 from datetime import datetime
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,18 +37,20 @@ NICE_NAMES = {
     "pulling_through": "Pulling through",
     "bell_keep_classical": "Bell (keep classical)",
     "bell_discard_classical": "Bell (discard classical)",
+    "bell_original_threshold_keep_classical": "Bell original threshold (keep classical)",
+    "bell_original_threshold_discard_classical": "Bell original threshold (discard classical)",
     "rho_LM_MR_trace_norm_discard_classical_identical_blocks": "Local trace distance (discard classical)",
     "rho_LM_MR_trace_norm_identical_blocks": "Local trace distance (identical blocks)",
     "rho_LM_MR_trace_norm": "Local trace distance",
     "rho_half_LM_MR_trace_norm": "Local trace distance (rho_half)",
-    "graddesc_global_reconstruction_non_interfering": r"Global reconstruction \& block-diagonal non-interference",
-    "graddesc_global_reconstruction_split_non_interfering": r"Global reconstruction \& 2-site non-interference",
+    "graddesc_global_reconstruction_non_interfering": "Global reconstruction \n\& block-diagonal non-interference",
+    "graddesc_global_reconstruction_split_non_interfering": "Global reconstruction \n\& 2-site non-interference",
 }
 
 COLORS = {  # Gradient descent methods have colors
     "None": sns.color_palette("Paired")[0],
-    "rho_LM_MR_trace_norm": sns.color_palette("Paired")[6],
-    "rho_half_LM_MR_trace_norm": sns.color_palette("Paired")[7],
+    "rho_LM_MR_trace_norm": sns.color_palette("Paired")[7],
+    "rho_half_LM_MR_trace_norm": sns.color_palette("Paired")[6],
     "rho_LM_MR_trace_norm_discard_classical_identical_blocks": sns.color_palette("Paired")[4],
     "rho_LM_MR_trace_norm_identical_blocks": sns.color_palette("Paired")[5],
     "graddesc_global_reconstruction_non_interfering": sns.color_palette("Paired")[2],
@@ -60,8 +64,17 @@ STYLES = {  # Iterative methods have styles
     "bell_discard_classical": "dashed",
     "vertical_svd_micro_bsvd": "solid",
     # 'pulling_through': (0,(5,7)),
+    "bell_original_threshold_keep_classical": (0, (5, 7)),
+    "bell_original_threshold_discard_classical": (0, (7, 5)),
     "pulling_through": "dashdot",
 }
+
+
+OMIT_ITERATIVE_METHODS = [
+    "bell_original_threshold_keep_classical",
+    "bell_original_threshold_discard_classical",
+]
+OMIT_GRADDESC_METHODS = ["rho_half_LM_MR_trace_norm"]
 
 
 def clean_method_name(method_name: str) -> str:
@@ -164,6 +177,11 @@ def preprocess_errors_data(df):
     method_names_graddesc = [get_method_name_graddesc(x) for x in df["filename"]]
     df = df.assign(**{"iterative method name": method_names_iterative})
     df = df.assign(**{"graddesc method name": method_names_graddesc})
+
+    # Remove the methods we don't want to plot
+    df = df[~df["iterative method name"].isin(OMIT_ITERATIVE_METHODS)]
+    df = df[~df["graddesc method name"].isin(OMIT_GRADDESC_METHODS)]
+
     # Add a method name column to the dataframe by combining the iterative and gradient descent method names
     method_names = [
         iterative + " + " + graddesc
@@ -229,10 +247,11 @@ def calculate_errors_relative_to_truncation(df):
 
 if __name__ == "__main__":
     # print('Loading the errors data')
-    # errors_data_files = glob.glob('evolution_analysis/data/*/errors.pkl')
-    # errors_data_files = natsorted(errors_data_files)
-    # filename = errors_data_files[-1]
-    filename = "evolution_analysis/data/2025-02-13/errors.pkl"  #'evolution_analysis/data/2025-01-28/errors.pkl'
+    WORKSPACE_PATH = Path(__file__).parent.parent.absolute()
+    errors_data_files = glob.glob(str(WORKSPACE_PATH / "evolution_analysis/data/*/errors.pkl"))
+    errors_data_files = natsorted(errors_data_files)
+    filename = errors_data_files[-1]
+    # filename = "evolution_analysis/data/2025-02-13/errors.pkl"  #'evolution_analysis/data/2025-01-28/errors.pkl'
     print(f"loading from {filename}")
     errors_data = pd.read_pickle(filename)
     print("Loaded errors data.")
@@ -289,7 +308,7 @@ if __name__ == "__main__":
     unique_t_maxs = natsorted(df["t_max"].unique())
     unique_operators = natsorted(df["operator"].unique())
 
-    operator = "〈σxA 4 σxB〉"  #'〈σx〉'
+    operator = "〈σx〉"  #'〈σxA 4 σxB〉'
     L = unique_Ls[0]
     max_bonds = unique_max_bonds[0]
     max_branches = unique_max_branches[0]
@@ -373,6 +392,7 @@ if __name__ == "__main__":
 
     # Create separate legends for iterative and gradient descent methods
     # First create dummy lines for the iterative methods legend
+    active_iterative_methods = _df["iterative method name"].unique()
     iterative_legend_elements = [
         plt.Line2D(  # type: ignore
             [0],
@@ -382,10 +402,11 @@ if __name__ == "__main__":
             label=NICE_NAMES[method],
         )
         for method, style in STYLES.items()
-        if method != "None"
+        if method != "None" and method in active_iterative_methods
     ]
 
     # Create dummy patches for the gradient descent methods legend
+    active_graddesc_methods = _df["graddesc method name"].unique()
     graddesc_legend_elements = [
         plt.Line2D(  # type: ignore
             [0],
@@ -395,6 +416,7 @@ if __name__ == "__main__":
             label=NICE_NAMES[method],
         )
         for method, color in COLORS.items()
+        if method in active_graddesc_methods
     ]
 
     # Add both legends
@@ -418,11 +440,13 @@ if __name__ == "__main__":
     )
     fig.supxlabel("Time", fontsize=FONTSIZE_LARGE, y=-0.02)
     plt.savefig(
-        f"evolution_analysis/plots/{filename.replace('/', '_').split('.')[0]}_{NOW}_error_over_time_{OP_NAMES_FILENAMES[operator]}.pdf",
+        WORKSPACE_PATH
+        / f"evolution_analysis/plots/{filename.replace('/', '_').split('.')[0]}_{NOW}_error_over_time_{OP_NAMES_FILENAMES[operator]}.pdf",
         bbox_inches="tight",
     )
     plt.savefig(
-        f"evolution_analysis/plots/{filename.replace('/', '_').split('.')[0]}_{NOW}_error_over_time_{OP_NAMES_FILENAMES[operator]}.png",
+        WORKSPACE_PATH
+        / f"evolution_analysis/plots/{filename.replace('/', '_').split('.')[0]}_{NOW}_error_over_time_{OP_NAMES_FILENAMES[operator]}.png",
         bbox_inches="tight",
         dpi=180,
     )
@@ -613,11 +637,13 @@ if __name__ == "__main__":
         for operator in ["〈σx〉", "〈σx σx〉", "〈σxA 4 σxB〉"]:
             fig, axes = plot_error_bars(df, operator, relative_to_truncation=relative_to_truncation)
             plt.savefig(
-                f"evolution_analysis/plots/{NOW}_error_bars_{OP_NAMES_FILENAMES[operator]}_{'relative_to_truncation' if relative_to_truncation else 'absolute'}.pdf",
+                WORKSPACE_PATH
+                / f"evolution_analysis/plots/{NOW}_error_bars_{OP_NAMES_FILENAMES[operator]}_{'relative_to_truncation' if relative_to_truncation else 'absolute'}.pdf",
                 bbox_inches="tight",
             )
             plt.savefig(
-                f"evolution_analysis/plots/{NOW}_error_bars_{OP_NAMES_FILENAMES[operator]}_{'relative_to_truncation' if relative_to_truncation else 'absolute'}.png",
+                WORKSPACE_PATH
+                / f"evolution_analysis/plots/{NOW}_error_bars_{OP_NAMES_FILENAMES[operator]}_{'relative_to_truncation' if relative_to_truncation else 'absolute'}.png",
                 bbox_inches="tight",
                 dpi=180,
             )
@@ -761,8 +787,12 @@ if __name__ == "__main__":
         g.fig.subplots_adjust(top=0.9)
         # plt.yscale('log')
         # plt.tight_layout()
-        plt.savefig(f"evolution_analysis/plots/{NOW}_{operator_safe}_errors_over_time.png")
-        plt.savefig(f"evolution_analysis/plots/{NOW}_{operator_safe}_errors_over_time.pdf")
+        plt.savefig(
+            WORKSPACE_PATH / f"evolution_analysis/plots/{NOW}_{operator_safe}_errors_over_time.png"
+        )
+        plt.savefig(
+            WORKSPACE_PATH / f"evolution_analysis/plots/{NOW}_{operator_safe}_errors_over_time.pdf"
+        )
         plt.show()
 
     # %%
