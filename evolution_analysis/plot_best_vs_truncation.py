@@ -25,9 +25,11 @@ if __name__ == "__main__":
         "runs_truncation/2025-02-13-L80-chi400-at999999-n500-f_None/pickles/L80-chi400-at999999-n500-f_None_branch_values.pkl",
     )
 
-    best_run = "runs/2025-03-08-L80-chi100-at100-n400-f_vertical_svd_micro_bsvd__graddesc_global_reconstruction_split_non_interfering/pickles/L80-chi100-at100-n400-f_vertical_svd_micro_bsvd__graddesc_global_reconstruction_split_non_interfering_branch_values.pkl"
+    # best_run = "runs/2025-03-08-L80-chi100-at100-n400-f_vertical_svd_micro_bsvd__graddesc_global_reconstruction_split_non_interfering/pickles/L80-chi100-at100-n400-f_vertical_svd_micro_bsvd__graddesc_global_reconstruction_split_non_interfering_branch_values.pkl"
+    # best_run_name = "Branching weighted average: bond dimension 100 \nvertical SVD + global reconstruction and block-diagonal non-interference"
 
-    best_run_name = "Branching weighted average: bond dimension 100 \nvertical SVD + global reconstruction and block-diagonal non-interference"
+    best_run = "runs/2025-03-08-L80-chi100-at100-n400-f_bell_original_threshold_keep_classical__rho_LM_MR_trace_norm/pickles/L80-chi100-at100-n400-f_bell_original_threshold_keep_classical__rho_LM_MR_trace_norm_branch_values.pkl"
+    best_run_name = "Branching weighted average: bond dimension 100 \nBell original threshold + Local trace distance"
 
     branch_values = pickle.load(open(DIRECTORY / best_run, "rb"))
 
@@ -50,14 +52,11 @@ if __name__ == "__main__":
                 + (f"_distance_{DISTANCES[operator]}" if DISTANCES[operator] > 0 else "")
                 + "_L_*.npy"
             )
-            print(f"filename = {filename}")
             analytic_files = natsorted(glob.glob(str(DIRECTORY / f"exact/results/{filename}")))[1:]
-            print(f"analytic_files = {analytic_files}")
             analytic_results_extrapolated = extrapolate_analytic_results(analytic_files)
             analytic_results_extrapolated = analytic_results_extrapolated[
                 analytic_results_extrapolated[:, 0] <= max_t
             ]
-            print(f"analytic_results_extrapolated = \n{analytic_results_extrapolated}")
 
         sns.set_style("whitegrid")
         plt.rcParams["text.usetex"] = True
@@ -138,6 +137,7 @@ if __name__ == "__main__":
             f"_distance_{DISTANCES[operator]}" if DISTANCES[operator] > 0 else ""
         )
         save_name = save_name + ("_with_individual_branches" if show_individual_branches else "")
+        save_name += f"_{best_run.split('/')[-1].split('.')[0]}"
         plt.savefig(save_name + ".pdf", bbox_inches="tight")
         plt.savefig(save_name + ".png", bbox_inches="tight")
         plt.show()

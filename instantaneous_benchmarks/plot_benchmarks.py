@@ -51,21 +51,20 @@ PROP_NICE_NAMES = {
     "norms_geometric_mean": "Norms geometric mean",
 }
 
+OMIT_GRADDESC_METHODS = ["rho_half_LM_MR_trace_norm"]
+
 
 if __name__ == "__main__":
     current_path = Path(__file__).parent.absolute()
-    # current_path = Path("instantaneous_benchmarks")
-    results_paths = natsorted(
-        glob.glob(str(current_path / "benchmark_results/benchmark_results*.json"))
+    # results_paths = natsorted(
+    #     glob.glob(str(current_path / "benchmark_results/benchmark_results*.json"))
+    # )
+    # assert len(results_paths) > 0, "No results found at " + str(current_path / "benchmark_results")
+    # results_path = results_paths[-1]
+    results_path = str(
+        current_path / "benchmark_results/benchmark_results_2025-01-21_11-59-05--random-quench.json"
     )
-    assert len(results_paths) > 0, "No results found at " + str(current_path / "benchmark_results")
-    results_path = results_paths[-1]
 
-    # results_path = "instantaneous_benchmarks/benchmark_results/benchmark_results_2025-02-18_06-28-41--ising.json"
-    # results_path = "instantaneous_benchmarks/benchmark_results/benchmark_results_2025-02-17_04-48-29--ising.json"
-    # results_path = "instantaneous_benchmarks/benchmark_results/benchmark_results_2025-01-21_16-40-38--ising.json"
-    # results_path = "instantaneous_benchmarks/benchmark_results/benchmark_results_2025-01-21_11-59-05--random-quench.json"
-    # results_path = natsorted(glob.glob(str(current_path / 'benchmark_results/benchmark_results_2024-10-24_22-12-57.json')))[-1]
     print(f"results_path for generating plots: {results_path}")
     results = json.load(open(results_path, "rb"))
     n_entries = np.median([len(results[key]) for key in results])
@@ -84,6 +83,8 @@ if __name__ == "__main__":
     results_dict = dict(results)
     results_dict["form_str"] = [str(results["form"][i]) for i in range(len(results))]
     results = pd.DataFrame(results_dict)
+
+    results = results[~results["graddesc_method"].isin(OMIT_GRADDESC_METHODS)]
     # sort the results
     results = results.iloc[
         results["method_name"]
@@ -207,9 +208,11 @@ if __name__ == "__main__":
 
     _df = copy.deepcopy(results)
 
+    _df = _df[_df["costFun_LM_MR_trace_distance"] <= 1]
+
     omit_methods = [
-        "bell_keep_classical__graddesc_global_reconstruction_split_non_interfering",
-        "bell_keep_classical__rho_LM_MR_trace_norm",
+        # "bell_keep_classical__graddesc_global_reconstruction_split_non_interfering",
+        # "bell_keep_classical__rho_LM_MR_trace_norm",
         "bell_keep_classical__rho_half_LM_MR_trace_norm",
         "bell_keep_classical_old__rho_LM_MR_trace_norm_identical_blocks_old",
         "bell_discard_classical_old__rho_LM_MR_trace_norm_discard_classical_identical_blocks_old",
@@ -225,7 +228,7 @@ if __name__ == "__main__":
 
     _df = _df[[x not in omit_methods for x in _df["method_name"]]]
 
-    _df = _df[_df["t"] <= 7]
+    # _df = _df[_df["t"] <= 7]
 
     # Create figure with 3x3 subplots
     fig, axes = plt.subplots(3, 3, figsize=(11, 9))
@@ -295,6 +298,7 @@ if __name__ == "__main__":
     fig.suptitle("Maximum bond dimension", fontsize=FONTSIZE_HUGE, x=0.55)
 
     # Create legends outside the subplots
+    active_iterative_methods = _df["iterative_method"].unique()
     iterative_legend_elements = [
         plt.Line2D(
             [0],
@@ -302,17 +306,23 @@ if __name__ == "__main__":
             color="black",
             linestyle=style,
             linewidth=_df[_df["iterative_method"] == method].iloc[0]["linewidth"],
-            label=NICE_NAMES[method],
+            label=NICE_NAMES[method].replace("None", "Truncation only"),
         )
         for method, style in STYLES.items()
-        if method != "None"
+        if method in active_iterative_methods
     ]
 
+    active_graddesc_methods = _df["graddesc_method"].unique()
     graddesc_legend_elements = [
-        plt.Line2D(
-            [0], [0], color=color, linestyle="-", linewidth=LINEWIDTH, label=NICE_NAMES[method]
+        plt.Line2D(  # type: ignore
+            [0],
+            [0],
+            color=color,
+            linestyle="-",
+            label=NICE_NAMES[method],
         )
         for method, color in COLORS.items()
+        if method in active_graddesc_methods
     ]
 
     # Add legends to the right of the subplots
@@ -349,8 +359,8 @@ if __name__ == "__main__":
     _df = copy.deepcopy(results)
 
     omit_methods = [
-        "bell_keep_classical__graddesc_global_reconstruction_split_non_interfering",
-        "bell_keep_classical__rho_LM_MR_trace_norm",
+        # "bell_keep_classical__graddesc_global_reconstruction_split_non_interfering",
+        # "bell_keep_classical__rho_LM_MR_trace_norm",
         "bell_keep_classical__rho_half_LM_MR_trace_norm",
         "bell_keep_classical_old__rho_LM_MR_trace_norm_identical_blocks_old",
         "bell_discard_classical_old__rho_LM_MR_trace_norm_discard_classical_identical_blocks_old",
@@ -515,8 +525,8 @@ def plot_stacked_methods(
     show_errorbars=True,
 ):
     omit_methods = [
-        "bell_keep_classical__graddesc_global_reconstruction_split_non_interfering",
-        "bell_keep_classical__rho_LM_MR_trace_norm",
+        # "bell_keep_classical__graddesc_global_reconstruction_split_non_interfering",
+        # "bell_keep_classical__rho_LM_MR_trace_norm",
         "bell_keep_classical__rho_half_LM_MR_trace_norm",
         "bell_keep_classical_old__rho_LM_MR_trace_norm_identical_blocks_old",
         "bell_discard_classical_old__rho_LM_MR_trace_norm_discard_classical_identical_blocks_old",
@@ -879,8 +889,8 @@ def plot_methods(
     show_errorbars=True,
 ):
     omit_methods = [
-        "bell_keep_classical__graddesc_global_reconstruction_split_non_interfering",
-        "bell_keep_classical__rho_LM_MR_trace_norm",
+        # "bell_keep_classical__graddesc_global_reconstruction_split_non_interfering",
+        # "bell_keep_classical__rho_LM_MR_trace_norm",
         "bell_keep_classical__rho_half_LM_MR_trace_norm",
         "bell_keep_classical_old__rho_LM_MR_trace_norm_identical_blocks_old",
         "bell_discard_classical_old__rho_LM_MR_trace_norm_discard_classical_identical_blocks_old",
