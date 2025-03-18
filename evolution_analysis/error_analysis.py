@@ -69,12 +69,21 @@ STYLES = {  # Iterative methods have styles
     "pulling_through": "dashdot",
 }
 
-
+# # For the default plot, omit alternative branch acceptance thresholds
 OMIT_ITERATIVE_METHODS = [
     "bell_original_threshold_keep_classical",
     "bell_original_threshold_discard_classical",
 ]
 OMIT_GRADDESC_METHODS = ["rho_half_LM_MR_trace_norm"]
+
+# # For the alternative plot, show only alternative vs normal acceptance thresholds
+# OMIT_ITERATIVE_METHODS = [
+#     "vertical_svd_micro_bsvd",
+#     "pulling_through",
+#     ]
+# OMIT_GRADDESC_METHODS = [
+#     "rho_half_LM_MR_trace_norm"
+#     ]
 
 
 def clean_method_name(method_name: str) -> str:
@@ -164,7 +173,7 @@ def preprocess_errors_data(df):
     below_cutoff_time = [df.iloc[i]["time"] < cutoff_times[df.iloc[i]["L"]] for i in range(len(df))]
     df = df[below_cutoff_time]
 
-    # Remove the bond dimension 200 runs
+    # Remove the bond dimension 200 runs (unfinished)
     df = df[df["max_bonds"] != 200]
 
     df = df[[x in [80, 128] for x in df["L"]]]
@@ -245,47 +254,150 @@ def calculate_errors_relative_to_truncation(df):
     return df
 
 
+def generate_run_index(df):
+    for i, row in df.iterrows():
+        df.loc[i, "run_label"] = (
+            f"{row['L']}_{row['max_bonds']}_{row['iterative method name']}_{row['graddesc method name']}"
+        )
+    return df
+
+
 if __name__ == "__main__":
     # print('Loading the errors data')
     WORKSPACE_PATH = Path(__file__).parent.parent.absolute()
     errors_data_files = glob.glob(str(WORKSPACE_PATH / "evolution_analysis/data/*/errors.pkl"))
     errors_data_files = natsorted(errors_data_files)
     filename = errors_data_files[-1]
-    # filename = "evolution_analysis/data/2025-02-13/errors.pkl"  #'evolution_analysis/data/2025-01-28/errors.pkl'
     print(f"loading from {filename}")
     errors_data = pd.read_pickle(filename)
     print("Loaded errors data.")
 
     print("Preprocessing errors data...")
-    df = copy.deepcopy(errors_data)
-    df = preprocess_errors_data(df)
+    df_1 = copy.deepcopy(errors_data)
+    df_1 = preprocess_errors_data(df_1)
+    # Map iterative_method from "vertial_svd_micro_bsvd " to "vertical_svd_micro_bsvd"
+    df_1.loc[df_1["iterative method name"] == "vertial_svd_micro_bsvd", "iterative method name"] = (
+        "vertical_svd_micro_bsvd"
+    )
+    df_1 = generate_run_index(df_1)
     print("Preprocessed errors data.")
 
-    # print("Calculating relative errors...")
-    # df = calculate_errors_relative_to_truncation(df)
-    # print("Calculated relative errors.")
+    # Load the second errors data file
+    filename_2 = str(WORKSPACE_PATH / "evolution_analysis/data/2025-02-13/errors.pkl")
+    errors_data_2 = pd.read_pickle(filename_2)
 
-    plots_prefix = filename.replace("/", "_").split(".")[0] + "_" + NOW
-    # Plot the errors data
-    sns.set_style("whitegrid")
-    plt.rcParams["figure.figsize"] = [8, 7]
-    plt.rcParams["text.usetex"] = True
+    print("Loaded errors data 2.")
 
-    # Add this configuration before any plotting code
-    sns.set_style("whitegrid")
-    plt.rcParams.update(
-        {
-            "text.usetex": True,
-            "font.family": "serif",
-            "font.serif": ["Computer Modern Roman"],
-            "mathtext.fontset": "cm",
-            "axes.unicode_minus": False,
-            "font.size": 12,
-        }
+    print("Preprocessing errors data 2...")
+    df_2 = copy.deepcopy(errors_data_2)
+    df_2 = preprocess_errors_data(df_2)
+    # Map iterative_method from "vertial_svd_micro_bsvd " to "vertical_svd_micro_bsvd"
+    df_2.loc[df_2["iterative method name"] == "vertial_svd_micro_bsvd", "iterative method name"] = (
+        "vertical_svd_micro_bsvd"
     )
+    df_2 = generate_run_index(df_2)
+    # Check none of the filenames in df_2 are in df_1
+    df_1_unique_filenames = df_1["filename"].unique()
+    for filename in df_2["filename"].unique():
+        assert filename not in df_1_unique_filenames, f"filename {filename} in df_2 and df_1"
+    print("Preprocessed errors data 2.")
+    df_1["pickle_filename"] = filename
+    df_2["pickle_filename"] = filename_2
 
-    FONTSIZE_SMALL = 11
-    FONTSIZE_LARGE = 15
+# %%
+
+
+def combine_dataframes(df_1, df_2):
+    unique_run_labels_1 = df_1["run_label"].unique()
+    unique_run_labels_2 = df_2["run_label"].unique()
+
+    all_run_labels = np.concatenate([unique_run_labels_1, unique_run_labels_2])
+    unique_run_labels = np.unique(all_run_labels)
+
+    df_1_keep = []
+    df_2_keep = []
+
+    # Keep only unique runs
+    for run_label in unique_run_labels:
+        df_1_run_label = df_1[df_1["run_label"] == run_label]
+        df_2_run_label = df_2[df_2["run_label"] == run_label]
+        df_1_run_label = df_1_run_label[df_1_run_label["operator"] == "〈σx〉"]
+        df_2_run_label = df_2_run_label[df_2_run_label["operator"] == "〈σx〉"]
+
+        if len(df_1_run_label) == 0 and len(df_2_run_label) == 0:
+            print(f"run_label: {run_label} not in df_1 or df_2")
+            continue
+        if len(df_1_run_label) == 0:
+            df_2_keep.append(run_label)
+            print(f"run_label: {run_label} only in df_2")
+            continue
+        if len(df_2_run_label) == 0:
+            df_1_keep.append(run_label)
+            print(f"run_label: {run_label} only in df_1")
+            continue
+
+        t_max_1 = df_1_run_label["time"].max()
+        t_max_2 = df_2_run_label["time"].max()
+        operator_error_1 = df_1_run_label["expectation_value_error"].mean()
+        operator_error_2 = df_2_run_label["expectation_value_error"].mean()
+
+        print(f"run_label: {run_label}")
+        print(f"t_max_1: {t_max_1}, t_max_2: {t_max_2}")
+        print(f"operator_error_1: {operator_error_1}, operator_error_2: {operator_error_2}")
+
+        # If the runs have the same t_max, keep the one with the lowest error
+        if t_max_1 > 15 and t_max_2 > 15:
+            if operator_error_1 < operator_error_2:
+                df_1_keep.append(run_label)
+            else:
+                df_2_keep.append(run_label)
+        else:  # If the runs have different t_max, keep the one with the largest t_max
+            if t_max_1 > t_max_2:
+                df_1_keep.append(run_label)
+            else:
+                df_2_keep.append(run_label)
+    assert len(df_1_keep) + len(df_2_keep) == len(unique_run_labels)
+    assert set(df_1_keep).intersection(set(df_2_keep)) == set()
+    # Concatenate the dataframes
+    df = pd.concat(
+        [df_1[df_1["run_label"].isin(df_1_keep)], df_2[df_2["run_label"].isin(df_2_keep)]]
+    )
+    return df
+
+
+if __name__ == "__main__":
+    df = combine_dataframes(df_1, df_2)
+    print("Concatenated errors data.")
+
+    # %%
+    # Check that there are not multiple filenames for a given L, max_bonds, iterative_method, graddesc_method
+    for L in df["L"].unique():
+        for max_bonds in df["max_bonds"].unique():
+            for iterative_method in df["iterative method name"].unique():
+                for graddesc_method in df["graddesc method name"].unique():
+                    __df = df[df["L"] == L]
+                    __df = __df[__df["max_bonds"] == max_bonds]
+                    __df = __df[__df["iterative method name"] == iterative_method]
+                    __df = __df[__df["graddesc method name"] == graddesc_method]
+                    filenames = __df["filename"].unique()
+                    assert (
+                        len(filenames) <= 1
+                    ), f"Multiple filenames for L={L}, max_bonds={max_bonds}, iterative_method={iterative_method}, graddesc_method={graddesc_method}:\n{filenames}"
+
+    for iterative_method in df["iterative method name"].unique():
+        assert (
+            iterative_method in NICE_NAMES
+        ), f"iterative_method {iterative_method} not in NICE_NAMES {NICE_NAMES}"
+        assert (
+            iterative_method not in OMIT_ITERATIVE_METHODS
+        ), f"iterative_method {iterative_method} in OMIT_ITERATIVE_METHODS {OMIT_ITERATIVE_METHODS}"
+    for graddesc_method in df["graddesc method name"].unique():
+        assert (
+            graddesc_method in NICE_NAMES
+        ), f"graddesc_method {graddesc_method} not in NICE_NAMES {NICE_NAMES}"
+        assert (
+            graddesc_method not in OMIT_GRADDESC_METHODS
+        ), f"graddesc_method {graddesc_method} in OMIT_GRADDESC_METHODS {OMIT_GRADDESC_METHODS}"
 
     # %%
     # Plot the errors in each expectation value over time
@@ -322,14 +434,14 @@ if __name__ == "__main__":
     _df = copy.deepcopy(df)
     _df = _df[_df["L"] == L]
     _df = _df[_df["max_bonds"] == max_bonds]
-    _df = _df[_df["max_branches"] == max_branches]
+    # _df = _df[_df["max_branches"] == max_branches]
     _df = _df[_df["operator"] == operator]
 
     # Create figure and axes grid based on number of combinations
     n_rows = len(unique_Ls)
     n_cols = len(unique_max_bonds)
     fig, axes = plt.subplots(
-        n_rows, n_cols, figsize=(4 * n_cols, 3 * n_rows), dpi=180, sharex=True, sharey=True
+        n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows), dpi=180, sharex=True, sharey=True
     )
 
     for i, L in tqdm(enumerate(unique_Ls)):
@@ -339,10 +451,16 @@ if __name__ == "__main__":
             # print(f'max_branches = {max_branches}')
             # print(f'operator = {operator}')
             _df = copy.deepcopy(df)
+            # _df = _df[~_df['filename'].str.contains('mnt/')]
             _df = _df[_df["L"] == L]
             _df = _df[_df["max_bonds"] == max_bonds]
-            _df = _df[_df["max_branches"] == max_branches]
+            # _df = _df[_df["max_branches"] == max_branches]
             _df = _df[_df["operator"] == operator]
+
+            __df = _df[_df["iterative method name"] == "None"]
+            truncation_max_t = __df[__df["graddesc method name"] == "None"]["time"].max()
+            _df = _df[_df["time"] <= truncation_max_t]
+            print(f"length of _df: {len(_df)}")
 
             # Get current axis based on position
             ax = (
@@ -393,16 +511,29 @@ if __name__ == "__main__":
     # Create separate legends for iterative and gradient descent methods
     # First create dummy lines for the iterative methods legend
     active_iterative_methods = _df["iterative method name"].unique()
+    # iterative_legend_elements = [
+    #     plt.Line2D(  # type: ignore
+    #         [0],
+    #         [0],
+    #         color="black",
+    #         linestyle=style,
+    #         label=NICE_NAMES[method],
+    #     )
+    #     for method, style in STYLES.items()
+    #     if method != "None" and method in active_iterative_methods
+    # ]
+    # Create legends outside the subplots
     iterative_legend_elements = [
-        plt.Line2D(  # type: ignore
+        plt.Line2D(
             [0],
             [0],
             color="black",
             linestyle=style,
-            label=NICE_NAMES[method],
+            linewidth=_df[_df["iterative method name"] == method].iloc[0]["linewidth"],
+            label=NICE_NAMES[method].replace("None", "Truncation only"),
         )
         for method, style in STYLES.items()
-        if method != "None" and method in active_iterative_methods
+        if method in active_iterative_methods
     ]
 
     # Create dummy patches for the gradient descent methods legend
