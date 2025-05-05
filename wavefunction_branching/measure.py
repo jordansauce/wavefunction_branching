@@ -714,9 +714,9 @@ def measure_psi(psi, coarsegrain_from=None, coarsegrain_size=2, return_TM_eigs=F
             if check >= 2:
                 I = np.eye(AB.shape[1])
                 I_check = einsum(I, TM_dense, "l lc, l lc r rc -> r rc")
-                assert np.allclose(I_check, I), (
-                    f"The dominant left TM evec should be the identity, but running the identity through gave {I_check} {plt.imshow(abs(I_check))}"
-                )
+                assert np.allclose(
+                    I_check, I
+                ), f"The dominant left TM evec should be the identity, but running the identity through gave {I_check} {plt.imshow(abs(I_check))}"
 
             TM_dense = rearrange(TM_dense, "l lc r rc -> (r rc) (l lc)")
 

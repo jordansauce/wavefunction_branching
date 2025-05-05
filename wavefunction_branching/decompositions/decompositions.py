@@ -348,9 +348,9 @@ def branch_from_theta(
     n_steps_graddesc=1000,
 ) -> tuple[PurificationMatrixStack, dict]:
     if iterative_method is None or iterative_method == "None":
-        assert graddesc_method is None or graddesc_method == "None", (
-            "Gradient descent without iterative initialization not supported"
-        )
+        assert (
+            graddesc_method is None or graddesc_method == "None"
+        ), "Gradient descent without iterative initialization not supported"
         return np.expand_dims(theta_scrambled, 0), {"iterative_time": 0.0, "graddesc_time": 0.0}
 
     if graddesc_method is not None:

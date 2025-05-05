@@ -136,9 +136,9 @@ def find_simultaneous_kraus_operators(
         "closest": partial(make_positive_closest, normalize_spectrum=normalize_spectrum),
         "none": lambda x: x,
     }
-    assert make_positive_method in make_positive_methods, (
-        f"make_positive_method must be one of {list(make_positive_methods.keys())}"
-    )
+    assert (
+        make_positive_method in make_positive_methods
+    ), f"make_positive_method must be one of {list(make_positive_methods.keys())}"
     make_positive_fn = make_positive_methods[make_positive_method]
     kraus_L = make_positive_fn(kraus_L)
 

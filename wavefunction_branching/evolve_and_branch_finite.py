@@ -13,7 +13,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import fire
 import matplotlib.pyplot as plt
@@ -243,9 +243,9 @@ def check_canonical_form(psi):
 def set_theta(coarsegrain_from, coarsegrain_size, psi, theta, norm, trunc_params):
     """Set part of a wavefuncion psi with a new tensor"""
     old_norm = psi.norm
-    assert coarsegrain_size == 2, (
-        "set_svd_theta only works for coarsegrain_size=2. I should write a more general function for this."
-    )
+    assert (
+        coarsegrain_size == 2
+    ), "set_svd_theta only works for coarsegrain_size=2. I should write a more general function for this."
     norm_theta = np.sqrt(einsum(theta, np.conj(theta), "p l r, p l r -> "))
     theta = theta / norm_theta
     theta = rearrange(theta, "(pa pb) l r -> pa pb l r", pa=int(np.sqrt(theta.shape[0])))
@@ -271,7 +271,7 @@ class BranchingMPS:
         | None = None,  # The function to use for finding branch decompositions in a wavefunction
         parent=None,  # a BrancingMPS from which we split (or None)
         children=None,  # a list of BrancingMPS which we have split into (or [])
-        max_children=None,
+        max_children: int | None = None,
         pickle_file=None,
         outfolder=DEFAULT_OUT_FOLDER,
         branching_attempts=0,
@@ -283,6 +283,7 @@ class BranchingMPS:
     ):
         self.tebd_engine = tebd_engine  # The TEBD engine to use for time evolution
         self.norm = self.tebd_engine.psi.norm
+        self.prob = abs(self.norm**2)
         self.cfg = cfg  # The configuration for splitting the wavefunction into branches
         self.pickle_file = pickle_file
         self.outfolder = outfolder
@@ -305,7 +306,7 @@ class BranchingMPS:
             self.children = children
 
         if max_children is None:
-            self.max_children = self.cfg.max_branches
+            self.max_children = int(self.cfg.max_branches)
         else:
             self.max_children = max_children
 
@@ -404,9 +405,9 @@ class BranchingMPS:
         coarsegrain_size=2,
         **kwargs,
     ):
-        assert self.tebd_engine is not None, (
-            f"tebd_engine is None but self.children = {self.children}"
-        )
+        assert (
+            self.tebd_engine is not None
+        ), f"tebd_engine is None but self.children = {self.children}"
         self.tebd_engine.psi.canonical_form(renormalize=False)
         # Decompose the coarsegrained region into branches
         if coarsegrain_from == "half":
@@ -524,55 +525,125 @@ class BranchingMPS:
             f"{self.ID}total overlap decomposition_error: {self.global_reconstruction_error_trace_distance}"
         )
 
-        # Sample from the branches
+        # Preceding code:
+        # - self.tebd_engine.psi is normalized, self.norm is 1.0
+        # - theta_purified is obtained from self.branch_function
+        # - branch_probs (q_b) are calculated from theta_purified and normalized to sum ~1.0
+        # - Initial quality/rejection checks have passed.
+        # - Assumes existence of BranchingMPS, random_round, set_theta_normalized, etc.
 
-        # Filter out branches if the number of branches is more than our max_children
-        branch_indices = np.random.choice(
-            np.arange(len(branch_probs)),
-            p=branch_probs / branch_probs.sum(),
-            replace=False,
-            size=min((branch_probs > 0).sum(), self.max_children),
-        )
-        print(f"{self.ID}branch_indices = {branch_indices}")
+        # --- Branch Sampling ---
+        assert isinstance(self.max_children, int)
 
-        # Assign the number of max children to each child branch, proportional to their probs (randomly)
-        selected_branch_probs = np.array([branch_probs[i] for i in branch_indices])
-        selected_branch_probs_rescaled = selected_branch_probs / np.sum(selected_branch_probs)
-        # TODO: MAKE THIS MORE EFFICIENT
-        i = 0
-        max_children = [-999]
-        while np.sum(max_children) != self.max_children and i < 10000:
-            max_children = [
-                max(0, random_round(self.max_children * selected_branch_probs_rescaled[i]))
-                for i in range(len(selected_branch_probs_rescaled))
-            ]
-            if i >= 10000:
-                print(f"No good assignment of max_children found - max_children = {max_children}")
-                break
-        # for i in range(len(branch_indices)):
-        #     if max_children[i] > 0:
-        #         # Drop any branches with a prob smaller than the error we're already introducing in the decomposition
-        #         if selected_branch_probs_rescaled[i] < costFun_LM_MR_trace_distance*self.cfg.discard_branch_prob_factor:
-        #             max_children[i] = 0
-        #             print(f'{self.ID}Discarding branch {i} with prob {selected_branch_probs_rescaled[i]:.2E} < costFun_LM_MR_trace_distance*self.cfg.discard_branch_prob_factor = {costFun_LM_MR_trace_distance:.2E}*{self.cfg.discard_branch_prob_factor:.2E} = {costFun_LM_MR_trace_distance * self.cfg.discard_branch_prob_factor:.2E}')
+        num_candidates = len(branch_probs)
+        candidate_indices = np.arange(num_candidates)
+
         print(
-            f"{self.ID}self.max_children = {self.max_children} sum(children max_children) = {sum(max_children)} children max_children = {max_children}"
+            f"{self.ID}Starting sampling/filtering with {num_candidates} candidates and budget {self.max_children}."
         )
-        branch_indices = [
-            branch_indices[i] for i in range(len(branch_indices)) if max_children[i] > 0
-        ]
-        print(f"{self.ID}branch_indices with nonzero max_children = {branch_indices}")
 
-        # branch_psis = []
-        # for i in range(len(branch_indices)):
-        #     prob = branch_probs[branch_indices[i]]
-        #     theta = theta_purified[branch_indices[i]] #if len(branch_indices) > 1 else theta_purified[branch_indices[i]] / np.sqrt(prob)
-        # tebd_engine = copy.deepcopy(self.tebd_engine)
-        # branch_psis.append(set_theta(coarsegrain_from, coarsegrain_size, tebd_engine.psi, theta, prob, tebd_engine.trunc_params))
+        # --- Stage 1 Sampling: Select based on parent's max_children budget ---
+        if num_candidates > self.max_children:
+            print(
+                f"{self.ID}Stage 1: Sampling {self.max_children} from {num_candidates} via np.random.choice."
+            )
+            # Ensure probabilities are normalized for sampling robustness
+            probs_for_choice = branch_probs / branch_probs.sum()
+            stage1_kept_indices = np.random.choice(
+                candidate_indices,
+                p=probs_for_choice,
+                replace=False,
+                size=self.max_children,
+            )
+            print(f"{self.ID}    Indices kept after stage 1: {stage1_kept_indices}")
+        else:
+            # Keep all candidates if budget allows
+            print(f"{self.ID}Stage 1: Keeping all {num_candidates} candidates (budget sufficient).")
+            stage1_kept_indices = candidate_indices
 
-        trace_distances_with_sampling = measure.LMR_trace_distances(
-            theta_orig, theta_purified[branch_indices]
+        num_selected_stage1 = len(stage1_kept_indices)
+
+        # --- Stage 2 Sampling: Allocate grandchild budget using random_round ---
+        final_survivor_original_indices = []
+        final_max_children = []  # Grandchild budgets for the final survivors
+
+        if num_selected_stage1 > 0:
+            print(
+                f"{self.ID}Stage 2: Allocating grandchild budget ({self.max_children}) among {num_selected_stage1} candidates."
+            )
+            selected_branch_probs = branch_probs[stage1_kept_indices]
+            selected_total_prob = selected_branch_probs.sum()
+            allocated_budgets = np.zeros(num_selected_stage1, dtype=int)
+
+            if np.isclose(selected_total_prob, 0.0):
+                print(
+                    f"{self.ID}    Warning: Total probability of stage 1 selected branches is zero."
+                )
+            else:
+                # Rescale probabilities of selected branches to sum to 1 for budget allocation
+                selected_branch_probs_rescaled = selected_branch_probs / selected_total_prob
+                weights_for_rounding = self.max_children * selected_branch_probs_rescaled
+
+                # Assign the number of max children to each child branch, proportional to their probs (randomly)
+                # TODO: MAKE THIS MORE EFFICIENT
+                i = 0
+                while np.sum(allocated_budgets) != self.max_children and i < 10000:
+                    allocated_budgets = np.array(
+                        [max(0, random_round(w)) for w in weights_for_rounding]
+                    )
+                    if i >= 10000:
+                        print(
+                            f"No good assignment of max_children found - allocated_budgets = {allocated_budgets}"
+                        )
+                        break
+                print(f"{self.ID}    Allocated grandchild budgets: {allocated_budgets}")
+
+            # Filter based on allocated budget
+            stage2_keep_mask = allocated_budgets > 0
+            final_survivor_original_indices = stage1_kept_indices[stage2_keep_mask]
+            final_max_children = allocated_budgets[stage2_keep_mask]
+            print(
+                f"{self.ID}    Indices surviving after stage 2 filtering: {final_survivor_original_indices}"
+            )
+        else:
+            print(f"{self.ID}Stage 2: Skipped (no branches survived stage 1).")
+            # Ensure lists are empty
+            final_survivor_original_indices = []
+            final_max_children = []
+
+        # --- Post-Sampling Processing ---
+        num_kept_branches = len(final_survivor_original_indices)
+        print(f"{self.ID}Total branches surviving all filtering: {num_kept_branches}")
+
+        # Check if any sampling/filtering actually occurred compared to the initial set
+        sampling_occurred = num_candidates > num_kept_branches
+        if sampling_occurred:
+            print(
+                f"{self.ID}Sampling occurred (started with {num_candidates}, kept {num_kept_branches})."
+            )
+        else:
+            print(f"{self.ID}No sampling occurred (kept all {num_candidates} candidates).")
+
+        # Retrieve the tensors for the surviving branches
+        # Assume optional truncation happened earlier, resulting in `thetas_truncated`
+        # If no truncation, use theta_purified directly. Let's assume we use theta_purified for now.
+        thetas_survivors = theta_purified[final_survivor_original_indices]
+
+        # Calculate total probability of *kept* branches (needed if sampling occurred)
+        probs_survived = branch_probs[final_survivor_original_indices]
+        total_prob_survived = probs_survived.sum()
+
+        # --- Error measurement & rejection ---
+
+        print(
+            f"{self.ID}self.max_children = {self.max_children} sum(children max_children) = {sum(final_max_children)} children max_children = {final_max_children}"
         )
+        branch_indices = final_survivor_original_indices
+        print(
+            f"{self.ID}branch_indices with nonzero max_children = {final_survivor_original_indices}"
+        )
+
+        trace_distances_with_sampling = measure.LMR_trace_distances(theta_orig, thetas_survivors)
         # trace_distance_with_sampling = 0.5 * (trace_distances_with_sampling['trace_distance_LM'] + trace_distances_with_sampling['trace_distance_MR'])
         print(f"{self.ID}trace_distances_with_sampling:")
         for key, value in trace_distances_with_sampling.items():
@@ -719,33 +790,61 @@ class BranchingMPS:
             self.branch_values.add_measurements_tebd(
                 self.tebd_engine, extra_measurements=self.trace_distances
             )
+            if hasattr(self, "tebd_engine") and self.tebd_engine is not None:
+                del self.tebd_engine
+                self.tebd_engine = None
             return
 
         if len(branch_indices) == 1:
+            print(f"{self.ID}Only one branch survived. Updating parent node.")
             theta = thetas_truncated[0]
-            prob = branch_probs[branch_indices[0]]
             self.tebd_engine.psi = set_theta(
                 coarsegrain_from,
                 coarsegrain_size,
                 self.tebd_engine.psi,
                 theta,
-                np.sqrt(prob),
+                1.0,
                 self.tebd_engine.trunc_params,
             )
             self.norm = self.tebd_engine.psi.norm
+            self.prob = abs(self.norm**2)
             self.ID = self.ID + f"{branch_indices[0]}|"
             self.depth += 1
         elif len(branch_indices) > 1:
+            print(f"{self.ID}Creating {num_kept_branches} children nodes.")
+
+            if np.isclose(total_prob_survived, 0.0):
+                print(
+                    f"{self.ID}ERROR: Total probability of surviving branches is zero, cannot renormalize weights. TERMINATING."
+                )
+                self.finished = True
+                self.prob = 0.0
+                self.norm = 0.0
+                if hasattr(self, "tebd_engine") and self.tebd_engine is not None:
+                    del self.tebd_engine
+                    self.tebd_engine = None
+                return
+
             for i in range(len(branch_indices)):
                 theta = thetas_truncated[i]
                 prob = branch_probs[branch_indices[i]]
                 tebd_engine = copy.deepcopy(self.tebd_engine)
+                child_max_children = int(final_max_children[i])
+
+                # Calculate child prob based on corrected logic
+                if sampling_occurred:
+                    # prob is parent_prob * (q_b / total_prob_survived)
+                    child_prob = prob / total_prob_survived
+                else:
+                    # No sampling: prob is parent_prob * q_b
+                    child_prob = prob
+
                 tebd_engine.psi = set_theta(
                     coarsegrain_from,
                     coarsegrain_size,
                     tebd_engine.psi,
                     theta,
-                    np.sqrt(prob),
+                    np.sqrt(child_prob),
                     tebd_engine.trunc_params,
                 )
                 self.children.append(
@@ -755,12 +854,23 @@ class BranchingMPS:
                         branch_values=self.branch_values,
                         branch_function=self.branch_function,
                         parent=self,
-                        max_children=int(max_children[i]),
+                        max_children=child_max_children,
                         ID=self.ID + f"{branch_indices[i]}|",
                         n_times_saved=self.n_times_saved,
                         name=self.name,
                     )
                 )
+                print(
+                    f"{self.ID}    Child {i} (orig index {final_survivor_original_indices[i]}): prob={prob:.4f}, prob={child_prob:.6f}, max_children={child_max_children}"
+                )
+
+            # Verify prob conservation
+            child_prob_sum = sum(abs(c.norm**2) for c in self.children)
+            print(
+                f"{self.ID}Parent prob = {self.prob:.8f}, Sum of children probs = {child_prob_sum:.8f}"
+            )
+            if not np.isclose(self.prob, child_prob_sum):
+                print(f"{self.ID}CRITICAL WARNING: Weight conservation failed!")
 
             # Sort the children from high prob to low prob
             self.children.sort(key=lambda x: np.abs(x.tebd_engine.psi.norm) ** 2, reverse=True)
@@ -768,9 +878,9 @@ class BranchingMPS:
             del self.tebd_engine
 
     def find_region_to_branch(self) -> tuple[int, int] | tuple[None, None]:
-        assert self.tebd_engine is not None, (
-            f"tebd_engine is None but self.children = {self.children}"
-        )
+        assert (
+            self.tebd_engine is not None
+        ), f"tebd_engine is None but self.children = {self.children}"
         if self.branch_function is None or not self.cfg.branching:
             return None, None
         chis = np.array(self.tebd_engine.psi.chi, dtype=float)

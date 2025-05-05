@@ -123,9 +123,9 @@ def benchmark_blockdiag_method(
     purif: PurificationMatrixStack = method(orig)
     walltime = time.time() - t0
 
-    assert purif.ndim == 4, (
-        f"purif.ndim = {purif.ndim} - should be 4 (b, p, l, r) - purif.shape = {purif.shape}"
-    )
+    assert (
+        purif.ndim == 4
+    ), f"purif.ndim = {purif.ndim} - should be 4 (b, p, l, r) - purif.shape = {purif.shape}"
 
     out = measure.LMR_trace_distances(orig, purif, measure_LR=False, measure_split=True)
 
@@ -521,9 +521,9 @@ def main(directory_name: str = "directory"):
             Bs_path = modify_path_str(current_path, Bs_path)
             if Bs_path.exists():
                 Bs_orig = np.load(Bs_path)
-                assert Bs_orig.shape == As.shape, (
-                    f"Bs must be the same shape as As in {row.save_str}"
-                )
+                assert (
+                    Bs_orig.shape == As.shape
+                ), f"Bs must be the same shape as As in {row.save_str}"
 
         As_square = make_square(As, 2)
 

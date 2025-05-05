@@ -564,15 +564,20 @@ def run_TEBD_random_evo(
 def generate_scrambling_matrices(
     scramble_kind, dim_L: int, dim_R: int
 ) -> tuple[np.ndarray, np.ndarray]:
-    assert scramble_kind in ["UU", "UV", "XX", "XY", "null", None], (
-        "scramble_kind must be one of ['UU', 'UV', 'XX', 'XY' 'null' or None]"
-    )
+    assert scramble_kind in [
+        "UU",
+        "UV",
+        "XX",
+        "XY",
+        "null",
+        None,
+    ], "scramble_kind must be one of ['UU', 'UV', 'XX', 'XY' 'null' or None]"
     if scramble_kind is None or scramble_kind == "null":
         return np.eye(dim_L), np.eye(dim_R)
     if scramble_kind == "UU" or scramble_kind == "XX":
-        assert dim_L == dim_R, (
-            "Dimension mismatch: UU and XX scrambling require square matrices (dim_L = dim_R)"
-        )
+        assert (
+            dim_L == dim_R
+        ), "Dimension mismatch: UU and XX scrambling require square matrices (dim_L = dim_R)"
     if scramble_kind == "UU":
         U = unitary_group.rvs(dim_L)
         return U, U.conj().T

@@ -56,11 +56,11 @@ OMIT_GRADDESC_METHODS = ["rho_half_LM_MR_trace_norm"]
 
 if __name__ == "__main__":
     current_path = Path(__file__).parent.absolute()
-    # results_paths = natsorted(
-    #     glob.glob(str(current_path / "benchmark_results/benchmark_results*.json"))
-    # )
-    # assert len(results_paths) > 0, "No results found at " + str(current_path / "benchmark_results")
-    # results_path = results_paths[-1]
+    results_paths = natsorted(
+        glob.glob(str(current_path / "benchmark_results/benchmark_results*.json"))
+    )
+    assert len(results_paths) > 0, "No results found at " + str(current_path / "benchmark_results")
+    results_path = results_paths[-1]
     results_path = str(
         current_path / "benchmark_results/benchmark_results_2025-01-21_11-59-05--random-quench.json"
     )
@@ -85,6 +85,12 @@ if __name__ == "__main__":
     results = pd.DataFrame(results_dict)
 
     results = results[~results["graddesc_method"].isin(OMIT_GRADDESC_METHODS)]
+
+    # Map iterative_method from "vertial_svd_micro_bsvd " to "vertical_svd_micro_bsvd"
+    results.loc[results["iterative_method"] == "vertial_svd_micro_bsvd", "iterative_method"] = (
+        "vertical_svd_micro_bsvd"
+    )
+
     # sort the results
     results = results.iloc[
         results["method_name"]
@@ -510,6 +516,7 @@ if __name__ == "__main__":
 
 
 # %%
+# Plot stacked methods
 
 
 def plot_stacked_methods(
@@ -525,8 +532,8 @@ def plot_stacked_methods(
     show_errorbars=True,
 ):
     omit_methods = [
-        # "bell_keep_classical__graddesc_global_reconstruction_split_non_interfering",
-        # "bell_keep_classical__rho_LM_MR_trace_norm",
+        "bell_keep_classical__graddesc_global_reconstruction_split_non_interfering",
+        "bell_keep_classical__rho_LM_MR_trace_norm",
         "bell_keep_classical__rho_half_LM_MR_trace_norm",
         "bell_keep_classical_old__rho_LM_MR_trace_norm_identical_blocks_old",
         "bell_discard_classical_old__rho_LM_MR_trace_norm_discard_classical_identical_blocks_old",
@@ -802,7 +809,7 @@ def plot_stacked_methods(
     legend_graddesc = plt.legend(
         handles=graddesc_legend_elements,
         title="Gradient descent method",
-        bbox_to_anchor=(-0.78, -0.2),
+        bbox_to_anchor=(-0.92, -0.2),
         loc="upper center",
         frameon=True,
         ncol=len(graddesc_legend_elements) // 2 + len(graddesc_legend_elements) % 2,
@@ -814,7 +821,7 @@ def plot_stacked_methods(
     legend_err = plt.legend(
         handles=error_legend_elements,
         title="Error components (trace distance)",
-        bbox_to_anchor=(-2.42, 1.0),
+        bbox_to_anchor=(-2.72, 1.0),
         loc="upper left",
         frameon=True,
         ncol=2,
@@ -889,8 +896,8 @@ def plot_methods(
     show_errorbars=True,
 ):
     omit_methods = [
-        # "bell_keep_classical__graddesc_global_reconstruction_split_non_interfering",
-        # "bell_keep_classical__rho_LM_MR_trace_norm",
+        "bell_keep_classical__graddesc_global_reconstruction_split_non_interfering",
+        "bell_keep_classical__rho_LM_MR_trace_norm",
         "bell_keep_classical__rho_half_LM_MR_trace_norm",
         "bell_keep_classical_old__rho_LM_MR_trace_norm_identical_blocks_old",
         "bell_discard_classical_old__rho_LM_MR_trace_norm_discard_classical_identical_blocks_old",
@@ -1114,7 +1121,7 @@ def plot_methods(
         handles=graddesc_legend_elements,
         title="Gradient descent method",
         #   bbox_to_anchor=(-1.0, -0.2),
-        bbox_to_anchor=(-0.78, -0.2),
+        bbox_to_anchor=(-0.92, -0.2),
         loc="upper center",
         frameon=True,
         ncol=len(graddesc_legend_elements) // 2 + len(graddesc_legend_elements) % 2,

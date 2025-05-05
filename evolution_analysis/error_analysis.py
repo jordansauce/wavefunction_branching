@@ -64,7 +64,9 @@ STYLES = {  # Iterative methods have styles
     "bell_discard_classical": "dashed",
     "vertical_svd_micro_bsvd": "solid",
     # 'pulling_through': (0,(5,7)),
-    "bell_original_threshold_keep_classical": (0, (5, 7)),
+    # "bell_original_threshold_keep_classical": (0, (5, 7)),
+    # "bell_original_threshold_discard_classical": (0, (7, 5)),
+    "bell_original_threshold_keep_classical": "solid",
     "bell_original_threshold_discard_classical": (0, (7, 5)),
     "pulling_through": "dashdot",
 }
@@ -76,7 +78,7 @@ OMIT_ITERATIVE_METHODS = [
 ]
 OMIT_GRADDESC_METHODS = ["rho_half_LM_MR_trace_norm"]
 
-# # For the alternative plot, show only alternative vs normal acceptance thresholds
+# For the alternative plot, show only alternative vs normal acceptance thresholds
 # OMIT_ITERATIVE_METHODS = [
 #     "vertical_svd_micro_bsvd",
 #     "pulling_through",
@@ -187,6 +189,11 @@ def preprocess_errors_data(df):
     df = df.assign(**{"iterative method name": method_names_iterative})
     df = df.assign(**{"graddesc method name": method_names_graddesc})
 
+    # Map iterative_method from "vertial_svd_micro_bsvd " to "vertical_svd_micro_bsvd"
+    df.loc[df["iterative method name"] == "vertial_svd_micro_bsvd", "iterative method name"] = (
+        "vertical_svd_micro_bsvd"
+    )
+
     # Remove the methods we don't want to plot
     df = df[~df["iterative method name"].isin(OMIT_ITERATIVE_METHODS)]
     df = df[~df["graddesc method name"].isin(OMIT_GRADDESC_METHODS)]
@@ -275,10 +282,6 @@ if __name__ == "__main__":
     print("Preprocessing errors data...")
     df_1 = copy.deepcopy(errors_data)
     df_1 = preprocess_errors_data(df_1)
-    # Map iterative_method from "vertial_svd_micro_bsvd " to "vertical_svd_micro_bsvd"
-    df_1.loc[df_1["iterative method name"] == "vertial_svd_micro_bsvd", "iterative method name"] = (
-        "vertical_svd_micro_bsvd"
-    )
     df_1 = generate_run_index(df_1)
     print("Preprocessed errors data.")
 
@@ -291,10 +294,6 @@ if __name__ == "__main__":
     print("Preprocessing errors data 2...")
     df_2 = copy.deepcopy(errors_data_2)
     df_2 = preprocess_errors_data(df_2)
-    # Map iterative_method from "vertial_svd_micro_bsvd " to "vertical_svd_micro_bsvd"
-    df_2.loc[df_2["iterative method name"] == "vertial_svd_micro_bsvd", "iterative method name"] = (
-        "vertical_svd_micro_bsvd"
-    )
     df_2 = generate_run_index(df_2)
     # Check none of the filenames in df_2 are in df_1
     df_1_unique_filenames = df_1["filename"].unique()
@@ -303,6 +302,29 @@ if __name__ == "__main__":
     print("Preprocessed errors data 2.")
     df_1["pickle_filename"] = filename
     df_2["pickle_filename"] = filename_2
+
+    # Plotting parameters
+    plots_prefix = filename.replace("/", "_").split(".")[0] + "_" + NOW
+    # Plot the errors data
+    sns.set_style("whitegrid")
+    plt.rcParams["figure.figsize"] = [8, 7]
+    plt.rcParams["text.usetex"] = True
+
+    # Add this configuration before any plotting code
+    sns.set_style("whitegrid")
+    plt.rcParams.update(
+        {
+            "text.usetex": True,
+            "font.family": "serif",
+            "font.serif": ["Computer Modern Roman"],
+            "mathtext.fontset": "cm",
+            "axes.unicode_minus": False,
+            "font.size": 12,
+        }
+    )
+
+    FONTSIZE_SMALL = 11
+    FONTSIZE_LARGE = 15
 
 # %%
 
@@ -400,7 +422,200 @@ if __name__ == "__main__":
         ), f"graddesc_method {graddesc_method} in OMIT_GRADDESC_METHODS {OMIT_GRADDESC_METHODS}"
 
     # %%
-    # Plot the errors in each expectation value over time
+    # Plot estimated interference error, truncation error, decomposition error, and  over time
+    # yprop = "n_branches"
+    yprop = "estimated_interference_error"
+    # yprop = "max_branches"
+    # yprop = "prob"
+    yprop_nice_names = {
+        "n_branches": "Number of branches",
+        "estimated_interference_error": "Estimated Interference Error",
+        "truncation error": "Accumulated Ttruncation Error",
+        "max_branches": "Max. Branches",
+        "prob": "Total probability weight of kept branches",
+    }
+
+    # df.keys() = (['filename', 'operator', 'time', 'L', 't_max', 'max_branches',
+    #    'max_bonds', 'branch_at', 'expectation_value_analytic',
+    #    'expectation_value_numeric', 'expectation_value_error', 'n_branches',
+    #    'total_norm', 'expectation_value_standard_deviation', 'method',
+    #    'average bond dimension', 'truncation error', 'norm',
+    #    'average entanglement entropy', 'rho_trace_norm',
+    #    'estimated_interference_error', 'tr(rho)', 'iterative method name',
+    #    'graddesc method name', 'method name', 'Operator'],
+    #   dtype='object')
+
+    unique_max_bonds = natsorted(df["max_bonds"].unique())
+    unique_Ls = natsorted(df["L"].unique())
+    unique_branch_ats = natsorted(df["branch_at"].unique())
+    unique_max_branches = natsorted(df["max_branches"].unique())
+    unique_times = natsorted(df["time"].unique())
+    unique_t_maxs = natsorted(df["t_max"].unique())
+    unique_operators = natsorted(df["operator"].unique())
+
+    operator = "〈σx〉"  #'〈σxA 4 σxB〉'
+    L = unique_Ls[0]
+    max_bonds = unique_max_bonds[0]
+    max_branches = unique_max_branches[0]
+
+    # Divide the operators by the operator from truncation at the same time
+
+    print(f"L = {L}")
+    print(f"max_bonds = {max_bonds}")
+    print(f"max_branches = {max_branches}")
+    print(f"operator = {operator}")
+    _df = copy.deepcopy(df)
+    _df = _df[_df["L"] == L]
+    _df = _df[_df["max_bonds"] == max_bonds]
+    # _df = _df[_df["max_branches"] == max_branches]
+    _df = _df[_df["operator"] == operator]
+
+    # Create figure and axes grid based on number of combinations
+    n_rows = len(unique_Ls)
+    n_cols = len(unique_max_bonds)
+    fig, axes = plt.subplots(
+        n_rows, n_cols, figsize=(3 * n_cols, 3 * n_rows), dpi=180, sharex=True, sharey=True
+    )
+
+    for i, L in tqdm(enumerate(unique_Ls)):
+        for j, max_bonds in enumerate(unique_max_bonds):
+            # print(f'L = {L}')
+            # print(f'max_bonds = {max_bonds}')
+            # print(f'max_branches = {max_branches}')
+            # print(f'operator = {operator}')
+            _df = copy.deepcopy(df)
+            # _df = _df[~_df['filename'].str.contains('mnt/')]
+            _df = _df[_df["L"] == L]
+            _df = _df[_df["max_bonds"] == max_bonds]
+            # _df = _df[_df["max_branches"] == max_branches]
+            _df = _df[_df["operator"] == operator]
+
+            __df = _df[_df["iterative method name"] == "None"]
+            truncation_max_t = __df[__df["graddesc method name"] == "None"]["time"].max()
+            _df = _df[_df["time"] <= truncation_max_t]
+            print(f"length of _df: {len(_df)}")
+
+            # Get current axis based on position
+            ax = (
+                axes[i, j]
+                if n_rows > 1 and n_cols > 1
+                else axes[i]
+                if n_rows > 1
+                else axes[j]
+                if n_cols > 1
+                else axes
+            )
+
+            filenames = natsorted(_df["filename"].unique())
+            for filename in filenames:
+                _df_filename = _df[_df["filename"] == filename]
+                graddesc_method_name = _df_filename["graddesc method name"].unique()
+                assert len(graddesc_method_name) == 1
+                graddesc_method_name = clean_method_name(graddesc_method_name[0])
+                iterative_method_name = _df_filename["iterative method name"].unique()
+                assert len(iterative_method_name) == 1
+                iterative_method_name = clean_method_name(iterative_method_name[0])
+                sort_args = np.argsort(_df_filename["time"])
+                style = _df_filename["style"].unique()[0]
+                color = _df_filename["color"].unique()[0]
+                linewidth = _df_filename["linewidth"].unique()[0]
+                y = np.array(_df_filename[yprop])[sort_args]
+                # y_smooth = gaussian_filter1d(y, sigma=20)
+                # Set z-order based on iterative method - 'None' should be beneath others
+                z_order = 1 if iterative_method_name == "None" else 2
+                ax.plot(
+                    np.array(_df_filename["time"])[sort_args],
+                    y,
+                    color=color,
+                    linestyle=style,
+                    linewidth=linewidth,
+                    zorder=z_order,
+                )
+            # ax.set_yscale("logit")
+            # ax.set_ylim(0.96, 1.0 - 1e-3)
+            ax.set_yscale("log")
+            ax.set_ylim(1e-5, 1e-2)
+            # Add minor ticks to log scale
+            ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10) * 0.1))  # type: ignore
+            ax.grid(True, which="minor", alpha=0.2)
+            ax.grid(True, which="major", alpha=0.5)
+            ax.set_title(f"L={L}, max_bonds={max_bonds}", fontsize=FONTSIZE_SMALL)
+    plt.tight_layout()
+
+    # Create separate legends for iterative and gradient descent methods
+    # First create dummy lines for the iterative methods legend
+    active_iterative_methods = _df["iterative method name"].unique()
+    # iterative_legend_elements = [
+    #     plt.Line2D(  # type: ignore
+    #         [0],
+    #         [0],
+    #         color="black",
+    #         linestyle=style,
+    #         label=NICE_NAMES[method],
+    #     )
+    #     for method, style in STYLES.items()
+    #     if method != "None" and method in active_iterative_methods
+    # ]
+    # Create legends outside the subplots
+    iterative_legend_elements = [
+        plt.Line2D(
+            [0],
+            [0],
+            color="black",
+            linestyle=style,
+            linewidth=_df[_df["iterative method name"] == method].iloc[0]["linewidth"],
+            label=NICE_NAMES[method].replace("None", "Truncation only"),
+        )
+        for method, style in STYLES.items()
+        if method in active_iterative_methods
+    ]
+
+    # Create dummy patches for the gradient descent methods legend
+    active_graddesc_methods = _df["graddesc method name"].unique()
+    graddesc_legend_elements = [
+        plt.Line2D(  # type: ignore
+            [0],
+            [0],
+            color=color,
+            linestyle="-",
+            label=NICE_NAMES[method],
+        )
+        for method, color in COLORS.items()
+        if method in active_graddesc_methods
+    ]
+
+    # Add both legends
+    fig.legend(
+        handles=iterative_legend_elements,
+        title="Iterative Methods",
+        bbox_to_anchor=(1.01, 0.7),
+        loc="center left",
+        borderaxespad=0,
+    )
+    fig.legend(
+        handles=graddesc_legend_elements,
+        title="Gradient Descent Methods",
+        bbox_to_anchor=(1.01, 0.3),
+        loc="center left",
+        borderaxespad=0,
+    )
+
+    fig.supylabel(yprop_nice_names[yprop], fontsize=FONTSIZE_LARGE, x=-0.02)
+    fig.supxlabel("Time", fontsize=FONTSIZE_LARGE, y=-0.02)
+    plt.savefig(
+        WORKSPACE_PATH
+        / f"evolution_analysis/plots/{filename.replace('/', '_').split('.')[0]}_{NOW}_{yprop}.pdf",
+        bbox_inches="tight",
+    )
+    plt.savefig(
+        WORKSPACE_PATH
+        / f"evolution_analysis/plots/{filename.replace('/', '_').split('.')[0]}_{NOW}_{yprop}.png",
+        bbox_inches="tight",
+        dpi=180,
+    )
+    plt.show()
+
+    # %%
 
     # df.keys() = (['filename', 'operator', 'time', 'L', 't_max', 'max_branches',
     #    'max_bonds', 'branch_at', 'expectation_value_analytic',
@@ -500,7 +715,7 @@ if __name__ == "__main__":
                 )
 
             ax.set_yscale("log")
-            ax.set_ylim(1e-4, 2e-2)
+            # ax.set_ylim(1e-4, 2e-2)
             # Add minor ticks to log scale
             ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10) * 0.1))  # type: ignore
             ax.grid(True, which="minor", alpha=0.2)
