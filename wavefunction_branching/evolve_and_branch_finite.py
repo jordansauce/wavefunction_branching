@@ -33,6 +33,7 @@ import wavefunction_branching.measure as measure
 from wavefunction_branching.decompositions.decompositions import branch
 from wavefunction_branching.hamiltonians import TFIChain, TFIModel
 from wavefunction_branching.utils.tensors import truncate_tensor
+from wavefunction_branching.utils.branch_rounding import probabilistic_round_child_budget
 
 sys.setrecursionlimit(100000)
 
@@ -538,81 +539,18 @@ class BranchingMPS:
         num_candidates = len(branch_probs)
         candidate_indices = np.arange(num_candidates)
 
+        # --- Branch Sampling: Allocate grandchild budget using random_round ---
+        allocated_budgets = probabilistic_round_child_budget(max_children, branch_probs)
+
+        keep_mask = allocated_budgets > 0
+        survivor_indices = candidate_indices[keep_mask]
+        final_max_children = allocated_budgets[keep_mask]
         print(
-            f"{self.ID}Starting sampling/filtering with {num_candidates} candidates and budget {self.max_children}."
+            f"{self.ID}    Indices surviving after stage 2 filtering: {survivor_indices}"
         )
 
-        # --- Stage 1 Sampling: Select based on parent's max_children budget ---
-        if num_candidates > self.max_children:
-            print(
-                f"{self.ID}Stage 1: Sampling {self.max_children} from {num_candidates} via np.random.choice."
-            )
-            # Ensure probabilities are normalized for sampling robustness
-            probs_for_choice = branch_probs / branch_probs.sum()
-            stage1_kept_indices = np.random.choice(
-                candidate_indices,
-                p=probs_for_choice,
-                replace=False,
-                size=self.max_children,
-            )
-            print(f"{self.ID}    Indices kept after stage 1: {stage1_kept_indices}")
-        else:
-            # Keep all candidates if budget allows
-            print(f"{self.ID}Stage 1: Keeping all {num_candidates} candidates (budget sufficient).")
-            stage1_kept_indices = candidate_indices
-
-        num_selected_stage1 = len(stage1_kept_indices)
-
-        # --- Stage 2 Sampling: Allocate grandchild budget using random_round ---
-        final_survivor_original_indices = []
-        final_max_children = []  # Grandchild budgets for the final survivors
-
-        if num_selected_stage1 > 0:
-            print(
-                f"{self.ID}Stage 2: Allocating grandchild budget ({self.max_children}) among {num_selected_stage1} candidates."
-            )
-            selected_branch_probs = branch_probs[stage1_kept_indices]
-            selected_total_prob = selected_branch_probs.sum()
-            allocated_budgets = np.zeros(num_selected_stage1, dtype=int)
-
-            if np.isclose(selected_total_prob, 0.0):
-                print(
-                    f"{self.ID}    Warning: Total probability of stage 1 selected branches is zero."
-                )
-            else:
-                # Rescale probabilities of selected branches to sum to 1 for budget allocation
-                selected_branch_probs_rescaled = selected_branch_probs / selected_total_prob
-                weights_for_rounding = self.max_children * selected_branch_probs_rescaled
-
-                # Assign the number of max children to each child branch, proportional to their probs (randomly)
-                # TODO: MAKE THIS MORE EFFICIENT
-                i = 0
-                while np.sum(allocated_budgets) != self.max_children and i < 10000:
-                    allocated_budgets = np.array(
-                        [max(0, random_round(w)) for w in weights_for_rounding]
-                    )
-                    if i >= 10000:
-                        print(
-                            f"No good assignment of max_children found - allocated_budgets = {allocated_budgets}"
-                        )
-                        break
-                print(f"{self.ID}    Allocated grandchild budgets: {allocated_budgets}")
-
-            # Filter based on allocated budget
-            stage2_keep_mask = allocated_budgets > 0
-            final_survivor_original_indices = stage1_kept_indices[stage2_keep_mask]
-            final_max_children = allocated_budgets[stage2_keep_mask]
-            print(
-                f"{self.ID}    Indices surviving after stage 2 filtering: {final_survivor_original_indices}"
-            )
-        else:
-            print(f"{self.ID}Stage 2: Skipped (no branches survived stage 1).")
-            # Ensure lists are empty
-            final_survivor_original_indices = []
-            final_max_children = []
-
         # --- Post-Sampling Processing ---
-        num_kept_branches = len(final_survivor_original_indices)
+        num_kept_branches = len(survivor_indices)
         print(f"{self.ID}Total branches surviving all filtering: {num_kept_branches}")
 
         # Check if any sampling/filtering actually occurred compared to the initial set
@@ -627,10 +565,10 @@ class BranchingMPS:
         # Retrieve the tensors for the surviving branches
         # Assume optional truncation happened earlier, resulting in `thetas_truncated`
         # If no truncation, use theta_purified directly. Let's assume we use theta_purified for now.
-        thetas_survivors = theta_purified[final_survivor_original_indices]
+        thetas_survivors = theta_purified[survivor_indices]
 
         # Calculate total probability of *kept* branches (needed if sampling occurred)
-        probs_survived = branch_probs[final_survivor_original_indices]
+        probs_survived = branch_probs[survivor_indices]
         total_prob_survived = probs_survived.sum()
 
         # --- Error measurement & rejection ---
@@ -638,9 +576,9 @@ class BranchingMPS:
         print(
             f"{self.ID}self.max_children = {self.max_children} sum(children max_children) = {sum(final_max_children)} children max_children = {final_max_children}"
         )
-        branch_indices = final_survivor_original_indices
+        branch_indices = survivor_indices
         print(
-            f"{self.ID}branch_indices with nonzero max_children = {final_survivor_original_indices}"
+            f"{self.ID}branch_indices with nonzero max_children = {survivor_indices}"
         )
 
         trace_distances_with_sampling = measure.LMR_trace_distances(theta_orig, thetas_survivors)
@@ -861,7 +799,7 @@ class BranchingMPS:
                     )
                 )
                 print(
-                    f"{self.ID}    Child {i} (orig index {final_survivor_original_indices[i]}): prob={prob:.4f}, prob={child_prob:.6f}, max_children={child_max_children}"
+                    f"{self.ID}    Child {i} (orig index {survivor_indices[i]}): prob={prob:.4f}, prob={child_prob:.6f}, max_children={child_max_children}"
                 )
 
             # Verify prob conservation
