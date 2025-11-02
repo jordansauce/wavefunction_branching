@@ -17,7 +17,7 @@ import wavefunction_branching.decompositions.graddesc_global as graddesc_global 
 import wavefunction_branching.decompositions.pulling_through as pulling_through
 import wavefunction_branching.decompositions.vertical_svd as vertical_svd
 import wavefunction_branching.utils.tensors as utils
-from wavefunction_branching.types import (
+from wavefunction_branching.type_aliases import (
     BlockDiagTensor,
     LeftSplittingTensor,
     MatrixStack,
@@ -348,9 +348,9 @@ def branch_from_theta(
     n_steps_graddesc=1000,
 ) -> tuple[PurificationMatrixStack, dict]:
     if iterative_method is None or iterative_method == "None":
-        assert (
-            graddesc_method is None or graddesc_method == "None"
-        ), "Gradient descent without iterative initialization not supported"
+        assert graddesc_method is None or graddesc_method == "None", (
+            "Gradient descent without iterative initialization not supported"
+        )
         return np.expand_dims(theta_scrambled, 0), {"iterative_time": 0.0, "graddesc_time": 0.0}
 
     if graddesc_method is not None:

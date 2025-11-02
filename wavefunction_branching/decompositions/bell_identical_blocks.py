@@ -9,7 +9,7 @@ from opt_einops import einsum, rearrange
 from scipy.optimize import minimize
 
 import wavefunction_branching.measure as measure
-from wavefunction_branching.types import (
+from wavefunction_branching.type_aliases import (
     FastVector,
     LeftEnvironmentTensor,
     LeftSplittingTensor,

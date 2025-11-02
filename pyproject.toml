@@ -20,7 +20,7 @@ dependencies = [
     "physics-tenpy",
     "fire",
     "datetime",
-    "jaxtyping>=0.2.38",
+    "jaxtyping",
     "scikit-learn",
     "natsort",
     "wandb",

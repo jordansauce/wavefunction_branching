@@ -5,7 +5,7 @@ import numpy as np
 from jaxtyping import Complex
 from opt_einops import einsum, rearrange
 
-from wavefunction_branching.types import Matrix, MPSTensor
+from wavefunction_branching.type_aliases import Matrix, MPSTensor
 
 
 def make_json_serializable(obj):

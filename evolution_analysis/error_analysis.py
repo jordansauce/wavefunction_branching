@@ -402,24 +402,24 @@ if __name__ == "__main__":
                     __df = __df[__df["iterative method name"] == iterative_method]
                     __df = __df[__df["graddesc method name"] == graddesc_method]
                     filenames = __df["filename"].unique()
-                    assert (
-                        len(filenames) <= 1
-                    ), f"Multiple filenames for L={L}, max_bonds={max_bonds}, iterative_method={iterative_method}, graddesc_method={graddesc_method}:\n{filenames}"
+                    assert len(filenames) <= 1, (
+                        f"Multiple filenames for L={L}, max_bonds={max_bonds}, iterative_method={iterative_method}, graddesc_method={graddesc_method}:\n{filenames}"
+                    )
 
     for iterative_method in df["iterative method name"].unique():
-        assert (
-            iterative_method in NICE_NAMES
-        ), f"iterative_method {iterative_method} not in NICE_NAMES {NICE_NAMES}"
-        assert (
-            iterative_method not in OMIT_ITERATIVE_METHODS
-        ), f"iterative_method {iterative_method} in OMIT_ITERATIVE_METHODS {OMIT_ITERATIVE_METHODS}"
+        assert iterative_method in NICE_NAMES, (
+            f"iterative_method {iterative_method} not in NICE_NAMES {NICE_NAMES}"
+        )
+        assert iterative_method not in OMIT_ITERATIVE_METHODS, (
+            f"iterative_method {iterative_method} in OMIT_ITERATIVE_METHODS {OMIT_ITERATIVE_METHODS}"
+        )
     for graddesc_method in df["graddesc method name"].unique():
-        assert (
-            graddesc_method in NICE_NAMES
-        ), f"graddesc_method {graddesc_method} not in NICE_NAMES {NICE_NAMES}"
-        assert (
-            graddesc_method not in OMIT_GRADDESC_METHODS
-        ), f"graddesc_method {graddesc_method} in OMIT_GRADDESC_METHODS {OMIT_GRADDESC_METHODS}"
+        assert graddesc_method in NICE_NAMES, (
+            f"graddesc_method {graddesc_method} not in NICE_NAMES {NICE_NAMES}"
+        )
+        assert graddesc_method not in OMIT_GRADDESC_METHODS, (
+            f"graddesc_method {graddesc_method} in OMIT_GRADDESC_METHODS {OMIT_GRADDESC_METHODS}"
+        )
 
     # %%
     # Plot estimated interference error, truncation error, decomposition error, and  over time

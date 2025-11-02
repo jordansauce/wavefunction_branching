@@ -30,8 +30,8 @@ from opt_einops import (
 
 # import pandas as pd
 # import seaborn as sns
-# from wavefunction_branching.types import MatrixStack
-from wavefunction_branching.types import MatrixStack
+# from wavefunction_branching.type_aliases import MatrixStack
+from wavefunction_branching.type_aliases import MatrixStack
 
 TorchScalarFloat: TypeAlias = Float[torch.Tensor, ""]
 TorchScalarComplex: TypeAlias = Complex[torch.Tensor, ""]

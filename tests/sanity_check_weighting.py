@@ -262,7 +262,7 @@ print(f"Avg. Exp. Value (Corrected Method) : {avg_exp_val_corrected:.6f} (Unbias
 print("\nBranch Survival Frequencies:")
 for i in range(num_candidates):
     print(
-        f"  Branch {i} survived: {survival_counts[i]/N_TRIALS:.4f} (Prob: {candidate_branches_data[i]['prob']:.4f})"
+        f"  Branch {i} survived: {survival_counts[i] / N_TRIALS:.4f} (Prob: {candidate_branches_data[i]['prob']:.4f})"
     )
 
 # --- Analytic Calculation (Approximation) ---

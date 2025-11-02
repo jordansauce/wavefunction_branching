@@ -12,7 +12,7 @@ from scipy.optimize import minimize
 
 import wavefunction_branching.measure as measure
 from wavefunction_branching.decompositions.bell_identical_blocks import mera_like_optimization
-from wavefunction_branching.types import (
+from wavefunction_branching.type_aliases import (
     BlockDiagTensor,
     LeftEnvironmentTensor,
     LeftSplittingTensor,

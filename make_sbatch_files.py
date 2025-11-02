@@ -3,9 +3,13 @@
 # Default parameters
 import copy
 from datetime import datetime
+from pathlib import Path
 
 dt_time = datetime.now()
 seed = 1000000 * dt_time.year + 10000 * dt_time.month + 100 * dt_time.day
+
+# Make a "runs" folder if it doesn't exist
+Path("runs").mkdir(exist_ok=True)
 
 
 def update_dict_copy(old_dict, new_entries):

@@ -32,8 +32,8 @@ from tenpy.algorithms.mpo_evolution import ExpMPOEvolution
 import wavefunction_branching.measure as measure
 from wavefunction_branching.decompositions.decompositions import branch
 from wavefunction_branching.hamiltonians import TFIChain, TFIModel
-from wavefunction_branching.utils.tensors import truncate_tensor
 from wavefunction_branching.utils.branch_rounding import probabilistic_round_child_budget
+from wavefunction_branching.utils.tensors import truncate_tensor
 
 sys.setrecursionlimit(100000)
 
@@ -244,9 +244,9 @@ def check_canonical_form(psi):
 def set_theta(coarsegrain_from, coarsegrain_size, psi, theta, norm, trunc_params):
     """Set part of a wavefuncion psi with a new tensor"""
     old_norm = psi.norm
-    assert (
-        coarsegrain_size == 2
-    ), "set_svd_theta only works for coarsegrain_size=2. I should write a more general function for this."
+    assert coarsegrain_size == 2, (
+        "set_svd_theta only works for coarsegrain_size=2. I should write a more general function for this."
+    )
     norm_theta = np.sqrt(einsum(theta, np.conj(theta), "p l r, p l r -> "))
     theta = theta / norm_theta
     theta = rearrange(theta, "(pa pb) l r -> pa pb l r", pa=int(np.sqrt(theta.shape[0])))
@@ -406,9 +406,9 @@ class BranchingMPS:
         coarsegrain_size=2,
         **kwargs,
     ):
-        assert (
-            self.tebd_engine is not None
-        ), f"tebd_engine is None but self.children = {self.children}"
+        assert self.tebd_engine is not None, (
+            f"tebd_engine is None but self.children = {self.children}"
+        )
         self.tebd_engine.psi.canonical_form(renormalize=False)
         # Decompose the coarsegrained region into branches
         if coarsegrain_from == "half":
@@ -545,9 +545,7 @@ class BranchingMPS:
         keep_mask = allocated_budgets > 0
         survivor_indices = candidate_indices[keep_mask]
         final_max_children = allocated_budgets[keep_mask]
-        print(
-            f"{self.ID}    Indices surviving after stage 2 filtering: {survivor_indices}"
-        )
+        print(f"{self.ID}    Indices surviving after stage 2 filtering: {survivor_indices}")
 
         # --- Post-Sampling Processing ---
         num_kept_branches = len(survivor_indices)
@@ -577,9 +575,7 @@ class BranchingMPS:
             f"{self.ID}self.max_children = {self.max_children} sum(children max_children) = {sum(final_max_children)} children max_children = {final_max_children}"
         )
         branch_indices = survivor_indices
-        print(
-            f"{self.ID}branch_indices with nonzero max_children = {survivor_indices}"
-        )
+        print(f"{self.ID}branch_indices with nonzero max_children = {survivor_indices}")
 
         trace_distances_with_sampling = measure.LMR_trace_distances(theta_orig, thetas_survivors)
         # trace_distance_with_sampling = 0.5 * (trace_distances_with_sampling['trace_distance_LM'] + trace_distances_with_sampling['trace_distance_MR'])
@@ -816,9 +812,9 @@ class BranchingMPS:
             del self.tebd_engine
 
     def find_region_to_branch(self) -> tuple[int, int] | tuple[None, None]:
-        assert (
-            self.tebd_engine is not None
-        ), f"tebd_engine is None but self.children = {self.children}"
+        assert self.tebd_engine is not None, (
+            f"tebd_engine is None but self.children = {self.children}"
+        )
         if self.branch_function is None or not self.cfg.branching:
             return None, None
         chis = np.array(self.tebd_engine.psi.chi, dtype=float)
