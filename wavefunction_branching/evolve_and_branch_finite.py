@@ -225,6 +225,8 @@ class BranchingMPSConfig:
     save_full_state: bool = False
     necessary_local_truncation_improvement_factor: float = 1.0
     necessary_global_truncation_improvement_factor: float = 1.0
+    tolEntropy: float | None = None
+    tolEntropy_kind: Literal["cnot", "vertical"] | None = "cnot"
 
 
 def check_canonical_form(psi):
@@ -1571,6 +1573,8 @@ def main(
     necessary_local_truncation_improvement_factor=1.1,
     necessary_global_truncation_improvement_factor=1.1,
     seed=None,
+    tolEntropy=None,
+    tolEntropy_kind: Literal["cnot", "vertical"] | None = "cnot",
 ):
     print("Running main")
     print(f"Iterative method: {iterative_method}")
@@ -1655,6 +1659,8 @@ def main(
         save_full_state=save_full_state,
         necessary_local_truncation_improvement_factor=necessary_local_truncation_improvement_factor,
         necessary_global_truncation_improvement_factor=necessary_global_truncation_improvement_factor,
+        tolEntropy=tolEntropy,
+        tolEntropy_kind=tolEntropy_kind,
     )
 
     branch_function = partial(
@@ -1662,6 +1668,8 @@ def main(
         iterative_method=iterative_method,
         graddesc_method=graddesc_method,
         n_steps_graddesc=maxiter_heuristic,
+        tolEntropy=tolEntropy,
+        tolEntropy_kind=tolEntropy_kind,
     )
 
     print("\n\n\n\nBranching evolution:")
