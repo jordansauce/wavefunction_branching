@@ -537,21 +537,13 @@ def branch_from_theta(
         "graddesc_global_reconstruction_split_non_interfering": graddesc_global_reconstruction_split_non_interfering,
     }
 
-    keep_classical = True
-    if graddesc_method == "rho_LM_MR_trace_norm_discard_classical_identical_blocks":
-        keep_classical = False
-    if graddesc_method is None and "discard_classical" in iterative_method:
-        keep_classical = False
     fn_graddesc = fn_dict_graddesc[graddesc_method]
 
-    norm_orig = einsum(theta_scrambled, np.conj(theta_scrambled), "p l r, p l r -> ")
     tensor = utils.make_square(theta_scrambled, 2)
 
     t1 = time.time()
     L, S, R, info = fn_iterative(tensor, n_steps=n_steps_iterative)
     t2 = time.time()
-
-    rejected = info.get("rejected"), False
 
     # Determine if the iterative method failed to find a good decomposition
     if tolEntropy is not None and tolEntropy_kind is not None:
@@ -560,7 +552,7 @@ def branch_from_theta(
         elif tolEntropy_kind == "vertical":
             entropy = calculate_entropy_vertical(tensor, L, S, R)
         else:
-            assert False, f"unknown tolEntropy_kind {tolEntropy_kind}"
+            raise AssertionError(f"unknown tolEntropy_kind {tolEntropy_kind}")
 
         info["entropy"] = entropy
         info["tolEntropy_kind"] = tolEntropy_kind
@@ -573,10 +565,10 @@ def branch_from_theta(
             print(f"    entropy = {entropy} (tolEntropy = {tolEntropy})")
             print(f"    tolEntropy_kind = {tolEntropy_kind}")
 
+    rejected = info.get("rejected"), False
+
     # Only perform gradient descent steps if info["rejected"] == False
-    theta_purified = fn_graddesc(
-        tensor, L, S, R, n_steps=0 if info["rejected"] else n_steps_graddesc
-    )
+    theta_purified = fn_graddesc(tensor, L, S, R, n_steps=(0 if rejected else n_steps_graddesc))
     t3 = time.time()
     return theta_purified, {"iterative_time": t2 - t1, "graddesc_time": t3 - t2, **info}
 

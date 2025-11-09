@@ -43,6 +43,8 @@ params_orig = dict(
     maxiter_heuristic=6000,
     necessary_local_truncation_improvement_factor=1.0,
     necessary_global_truncation_improvement_factor=1.0,
+    tolEntropy=0.01,
+    tolEntropy_kind="cnot",
     seed=seed,
 )
 
