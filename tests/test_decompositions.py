@@ -299,7 +299,7 @@ def test_calculate_entropy_vertical():
     )
 
 
-def test_calcuate_entropy_cnot_ghz():
+def test_calcuate_entropy_cnot_bell():
     # Create test tensor, which should have zero vertical entanglement entropy
     tensor_scrambled, U, tensor_top, Vh = create_tensors_with_zero_vertical_entropy(
         dPhys=4,
@@ -315,4 +315,50 @@ def test_calcuate_entropy_cnot_ghz():
     )
 
 
+def create_tensors_with_ghz_structure(
+    dPhys: int,
+    nBranches: int,
+    dVirt_L: int,
+    dVirt_R: int,
+    dSlow: int,
+) -> tuple[MatrixStack, LeftSplittingTensor, np.ndarray, RightSplittingTensor]:
+    assert dVirt_L == nBranches * dSlow
+    assert dVirt_R == nBranches * dSlow
+
+    tensor_top: BlockDiagTensor = np.random.rand(
+        dPhys, nBranches, dSlow, dSlow
+    ) + 1j * np.random.rand(dPhys, nBranches, dSlow, dSlow)
+    tensor_bottom = np.zeros((nBranches, nBranches, nBranches)) * 0.0j
+    for i in range(nBranches):
+        tensor_bottom[i, i, i] = np.random.rand() + 1.0j * np.random.rand()
+
+    # Create random unitaries to scramble the tensor
+    U = unitary_group.rvs(dVirt_L)
+    U = rearrange(U, "L (l bl) -> bl L l", l=dSlow, bl=nBranches)
+    Vh = unitary_group.rvs(dVirt_R)
+    Vh = rearrange(Vh, "(r br) R -> br r R", r=dSlow, br=nBranches)
+
+    tensor_scrambled = einsum(
+        U, tensor_top, tensor_bottom, Vh, "bl L l,  p bt l r,  bt bl br,  br r R -> p L R"
+    )
+    return tensor_scrambled, U, tensor_top, Vh
+
+
+def test_calcuate_entropy_cnot_ghz():
+    # Create test tensor, which should have zero vertical entanglement entropy
+    tensor_scrambled, U, tensor_top, Vh = create_tensors_with_ghz_structure(
+        dPhys=4,
+        nBranches=2,
+        dVirt_L=16,
+        dVirt_R=16,
+        dSlow=8,
+    )
+    # Check that the cnot entanglement entropy is zero
+    cnot_entropy = calculate_entropy_cnot(tensor_scrambled, U, tensor_top, Vh)
+    assert np.isclose(cnot_entropy, 0.0, atol=1e-10), (
+        f"cnot_entropy = {cnot_entropy}, expected close to 0.0"
+    )
+
+
+test_calcuate_entropy_cnot_ghz()
 # %%
