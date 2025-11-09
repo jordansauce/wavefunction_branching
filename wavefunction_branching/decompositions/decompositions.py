@@ -370,11 +370,15 @@ def calculate_entropy_vertical(
 
     L_mat = rearrange(L, "nBranches dVirt_L dSlow -> dVirt_L (nBranches dSlow)")
     uL_mat = utils.unitize(L_mat)
-    uL = rearrange(uL_mat, "dVirt_L (nBranches dSlow) -> nBranches dVirt_L dSlow")
+    uL = rearrange(
+        uL_mat, "dVirt_L (nBranches dSlow) -> nBranches dVirt_L dSlow", nBranches=L.shape[0]
+    )
 
     R_mat = rearrange(R, "nBranches dSlow dVirt_R -> dVirt_R (nBranches dSlow)")
     uR_mat = utils.unitize(R_mat)
-    uR = rearrange(uR_mat, "dVirt_R (nBranches dSlow) -> nBranches dSlow dVirt_R")
+    uR = rearrange(
+        uR_mat, "dVirt_R (nBranches dSlow) -> nBranches dSlow dVirt_R", nBranches=R.shape[0]
+    )
 
     # Compute the residual entanglement between slow and fast degrees of freedom
     overlap = einsum(np.conj(uL), tensor, np.conj(uR), "bl L l,  p L R,  br r R  ->  bl br p l r")
@@ -428,13 +432,17 @@ def calculate_entropy_cnot(
 
     L_mat = rearrange(L, "nBranches dVirt_L dSlow -> dVirt_L (nBranches dSlow)")
     uL_mat = utils.unitize(L_mat)
-    uL = rearrange(uL_mat, "dVirt_L (nBranches dSlow) -> nBranches dVirt_L dSlow")
+    uL = rearrange(
+        uL_mat, "dVirt_L (nBranches dSlow) -> nBranches dVirt_L dSlow", nBranches=L.shape[0]
+    )
 
     R_mat = rearrange(R, "nBranches dSlow dVirt_R -> dVirt_R (nBranches dSlow)")
     uR_mat = utils.unitize(R_mat)
-    uR = rearrange(uR_mat, "dVirt_R (nBranches dSlow) -> nBranches dSlow dVirt_R")
+    uR = rearrange(
+        uR_mat, "dVirt_R (nBranches dSlow) -> nBranches dSlow dVirt_R", nBranches=R.shape[0]
+    )
 
-    # Compute the residual entanglement between slow and fast degrees of freedom
+    # Compute the guess for he middle tensor
     overlap = einsum(np.conj(uL), tensor, np.conj(uR), "bl L l,  p L R,  br r R  ->  bl br p l r")
 
     # A CNOT is composed of an XOR tensor and a COPY tensor. see https://arxiv.org/pdf/1708.00006
@@ -444,14 +452,20 @@ def calculate_entropy_cnot(
     xor_gate[0, 1, 1] += 1.0
     xor_gate[1, 0, 1] += 1.0
 
-    xor_bottom_right = einsum(overlap, xor, "bl br p l r, bl br br_new -> bl br_new p l r")
-    xor_bottom_left = einsum(overlap, xor, "bl br p l r, bl br bl_new -> bl_new br p l r")
+    assert xor_gate[0, 1, 0] == xor_gate[1, 0, 0]
+    assert xor_gate[0, 0, 1] == xor_gate[1, 0, 0]
+
+    assert xor_gate[0, 1, 1] == xor_gate[1, 1, 0]
+    assert xor_gate[0, 1, 1] == xor_gate[1, 0, 1]
+
+    xor_bottom_right = einsum(overlap, xor_gate, "bl br p l r, bl br br_new -> bl br_new p l r")
+    xor_bottom_left = einsum(overlap, xor_gate, "bl br p l r, bl br bl_new -> bl_new br p l r")
 
     rho_bottom_right = einsum(
-        xor_bottom_right, np.conj(xor_bottom_right), "bl br p l r, bl br p l r_prime -> r r_prime"
+        xor_bottom_right, np.conj(xor_bottom_right), "bl br p l r, bl br_prime p l r -> br br_prime"
     )
     rho_bottom_left = einsum(
-        xor_bottom_left, np.conj(xor_bottom_left), "bl br p l r, bl br p l_prime r -> l l_prime"
+        xor_bottom_left, np.conj(xor_bottom_left), "bl br p l r, bl_prime br p l r -> bl bl_prime"
     )
 
     spectrum_bottom_right = np.linalg.eigvalsh(rho_bottom_right)
