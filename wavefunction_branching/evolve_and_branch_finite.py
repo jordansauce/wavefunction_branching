@@ -542,7 +542,7 @@ class BranchingMPS:
         candidate_indices = np.arange(num_candidates)
 
         # --- Branch Sampling: Allocate grandchild budget using random_round ---
-        allocated_budgets = probabilistic_round_child_budget(max_children, branch_probs)
+        allocated_budgets = probabilistic_round_child_budget(self.max_children, branch_probs)
 
         keep_mask = allocated_budgets > 0
         survivor_indices = candidate_indices[keep_mask]
@@ -688,10 +688,10 @@ class BranchingMPS:
         else:
             print(f"{self.ID}Accepting the branch decomposition: ")
             print(
-                f"    local_trace_distance = {costFun_LM_MR_trace_distance:.2e} < truncation_only_comparison = {trace_distance_truncation_only_comparison:.2e}"
+                f"    local_trace_distance = {costFun_LM_MR_trace_distance:.2e} vs truncation_only_comparison = {trace_distance_truncation_only_comparison:.2e}"
             )
             print(
-                f"    global_trace_distance = {global_reconstruction_error_trace_distance:.2e} < truncation_only_comparison = {global_reconstruction_error_truncation_only_comparison:.2e}"
+                f"    global_trace_distance = {global_reconstruction_error_trace_distance:.2e} vs truncation_only_comparison = {global_reconstruction_error_truncation_only_comparison:.2e}"
             )
             self.last_attempted_branching_trunc_bond_dims_sites[coarsegrain_from] = None
             self.last_attempted_branching_trunc_trace_distance_sites[coarsegrain_from] = None
