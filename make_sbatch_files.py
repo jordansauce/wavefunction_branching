@@ -43,6 +43,8 @@ params_orig = dict(
     maxiter_heuristic=6000,
     necessary_local_truncation_improvement_factor=1.0,
     necessary_global_truncation_improvement_factor=1.0,
+    tolEntropy=None,
+    tolEntropy_kind="cnot",
     seed=seed,
 )
 
@@ -160,6 +162,8 @@ for n_sites in [80, 128]:
                 t_evo=(0.25 * n_sites - 2.0),
                 necessary_local_truncation_improvement_factor=0.0,
                 necessary_global_truncation_improvement_factor=0.0,
+                tolEntropy=0.01,
+                tolEntropy_kind="vertical",
             ),
             dict(
                 iterative_method="bell_original_threshold_discard_classical",
@@ -170,6 +174,8 @@ for n_sites in [80, 128]:
                 t_evo=(0.25 * n_sites - 2.0),
                 necessary_local_truncation_improvement_factor=0.0,
                 necessary_global_truncation_improvement_factor=0.0,
+                tolEntropy=0.01,
+                tolEntropy_kind="vertical",
             ),
             dict(
                 iterative_method="bell_original_threshold_keep_classical",
@@ -180,6 +186,8 @@ for n_sites in [80, 128]:
                 t_evo=(0.25 * n_sites - 2.0),
                 necessary_local_truncation_improvement_factor=0.0,
                 necessary_global_truncation_improvement_factor=0.0,
+                tolEntropy=0.01,
+                tolEntropy_kind="vertical",
             ),
             dict(
                 iterative_method="bell_original_threshold_keep_classical",
@@ -190,6 +198,8 @@ for n_sites in [80, 128]:
                 t_evo=(0.25 * n_sites - 2.0),
                 necessary_local_truncation_improvement_factor=0.0,
                 necessary_global_truncation_improvement_factor=0.0,
+                tolEntropy=0.01,
+                tolEntropy_kind="vertical",
             ),
             dict(
                 iterative_method="bell_original_threshold_keep_classical",
@@ -200,6 +210,8 @@ for n_sites in [80, 128]:
                 t_evo=(0.25 * n_sites - 2.0),
                 necessary_local_truncation_improvement_factor=0.0,
                 necessary_global_truncation_improvement_factor=0.0,
+                tolEntropy=0.01,
+                tolEntropy_kind="vertical",
             ),
             dict(
                 iterative_method="bell_original_threshold_keep_classical",
@@ -210,6 +222,8 @@ for n_sites in [80, 128]:
                 t_evo=(0.25 * n_sites - 2.0),
                 necessary_local_truncation_improvement_factor=0.0,
                 necessary_global_truncation_improvement_factor=0.0,
+                tolEntropy=0.01,
+                tolEntropy_kind="vertical",
             ),
             dict(
                 iterative_method="bell_original_threshold_keep_classical",
@@ -220,6 +234,8 @@ for n_sites in [80, 128]:
                 t_evo=(0.25 * n_sites - 2.0),
                 necessary_local_truncation_improvement_factor=0.0,
                 necessary_global_truncation_improvement_factor=0.0,
+                tolEntropy=0.01,
+                tolEntropy_kind="vertical",
             ),
             # Other methods
             dict(
@@ -293,6 +309,46 @@ for n_sites in [80, 128]:
                 chi_to_branch=chi_max,  # int(chi_max*0.75),
                 n_sites=n_sites,
                 t_evo=(0.25 * n_sites - 2.0),
+            ),
+
+
+            ## Cnot entropy threshold
+            
+            dict(
+                iterative_method="vertical_svd_micro_bsvd",
+                graddesc_method="graddesc_global_reconstruction_non_interfering",
+                chi_max=chi_max,
+                chi_to_branch=chi_max,  # int(chi_max*0.75),
+                n_sites=n_sites,
+                t_evo=(0.25 * n_sites - 2.0),
+                necessary_local_truncation_improvement_factor=0.0,
+                necessary_global_truncation_improvement_factor=0.0,
+                tolEntropy=0.01,
+                tolEntropy_kind="cnot",
+            ),
+            dict(
+                iterative_method="vertical_svd_micro_bsvd",
+                graddesc_method="graddesc_global_reconstruction_split_non_interfering",
+                chi_max=chi_max,
+                chi_to_branch=chi_max,  # int(chi_max*0.75),
+                n_sites=n_sites,
+                t_evo=(0.25 * n_sites - 2.0),
+                necessary_local_truncation_improvement_factor=0.0,
+                necessary_global_truncation_improvement_factor=0.0,
+                tolEntropy=0.01,
+                tolEntropy_kind="cnot",
+            ),
+            dict(
+                iterative_method="vertical_svd_micro_bsvd",
+                graddesc_method="rho_LM_MR_trace_norm",
+                chi_max=chi_max,
+                chi_to_branch=chi_max,  # int(chi_max*0.75),
+                n_sites=n_sites,
+                t_evo=(0.25 * n_sites - 2.0),
+                necessary_local_truncation_improvement_factor=0.0,
+                necessary_global_truncation_improvement_factor=0.0,
+                tolEntropy=0.01,
+                tolEntropy_kind="cnot",
             ),
             # dict(
             #     iterative_method = 'vertical_svd_micro_bsvd',

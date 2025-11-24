@@ -322,6 +322,168 @@ def no_graddesc_different_blocks(
 
 
 ############################################################################################################
+# tolEntropy calculaion functions
+############################################################################################################
+
+# LeftSplittingTensor       : TypeAlias = Complex[NDArray, "nBranches dVirt_L dSlow"]
+# BlockDiagTensor           : TypeAlias = Complex[NDArray, "dPhys nBranches dSlow dSlow"]
+# RightSplittingTensor      : TypeAlias = Complex[NDArray, "nBranches dSlow dVirt_R"]
+# MatrixStack               : TypeAlias = Complex[NDArray, "dPhys dVirt_L dVirt_R"]
+
+
+def calculate_entropy_vertical(
+    tensor: MatrixStack, L: LeftSplittingTensor, S: BlockDiagTensor, R: RightSplittingTensor
+):
+    """
+    Calculate the residual vertical entanglement entropy after an attempted decomposision into
+    block-diagonal form. Vertical entanglement entropy will be zero for exact blocks, where each
+    block is identical. Zero vertical entanglement corresponds to a Bell-pair between L and R, not
+    entangled with S. This is the entropy of rho_fast in https://arxiv.org/abs/2308.04291
+
+    Inputs:
+        tensor: MatrixStack: Complex[NDArray, "dPhys dVirt_L dVirt_R"]
+            The original tensor which has attempted to be decomposed into L S R
+            as tensor approx = einsum(L, S, R, "b L l, p b l r, b r R -> p L R")
+            dPhys indexes the matrix in the stack. Each matrix is a dVirt_L x dVirt_R dimensional.
+
+        L: LeftSplittingTensor: Complex[NDArray, "nBranches dVirt_L dSlow"]
+            The (unitary) splitting matrix decomposing the tensor into a block-diagonal form from
+            the left.
+
+        S: BlockDiagTensor: Complex[NDArray, "dPhys nBranches dSlow dSlow"]
+            The central block-diagonal stack of matrices, where dPhys indexes the matrix in the stack,
+            nBranches indexes which block in the block-diagonal structure, and each block is of
+            dimension dSlow x dSlow.
+
+        R: RightSplittingTensor: Complex[NDArray, "nBranches dSlow dVirt_R"]
+            The (unitary) splitting matrix decomposing the tensor into a block-diagonal form from
+            the right.
+
+    Output:
+        entropy:
+            The vertical entanglement entropy between the slow and fast degrees of freedom.
+            This is zero for Bell-like entanglement (but nonzero for GHZ or non-branch-like entanglement)
+    """
+    # Assume L and R are unitary.
+    #    L should be a unitary map from dVirt_L to nBranches x dSlow
+    #    R should be a unitary map from dVirt_R to nBranches x dSlow
+
+    L_mat = rearrange(L, "nBranches dVirt_L dSlow -> dVirt_L (nBranches dSlow)")
+    uL_mat = utils.unitize(L_mat)
+    uL = rearrange(
+        uL_mat, "dVirt_L (nBranches dSlow) -> nBranches dVirt_L dSlow", nBranches=L.shape[0]
+    )
+
+    R_mat = rearrange(R, "nBranches dSlow dVirt_R -> dVirt_R (nBranches dSlow)")
+    uR_mat = utils.unitize(R_mat)
+    uR = rearrange(
+        uR_mat, "dVirt_R (nBranches dSlow) -> nBranches dSlow dVirt_R", nBranches=R.shape[0]
+    )
+
+    # Compute the residual entanglement between slow and fast degrees of freedom
+    overlap = einsum(np.conj(uL), tensor, np.conj(uR), "bl L l,  p L R,  br r R  ->  bl br p l r")
+    rho_fast = einsum(overlap, np.conj(overlap), "bl br p l r,  blc brc p l r   ->  bl br blc brc")
+    vertical_spectrum = np.linalg.eigvalsh(
+        rearrange(rho_fast, "bl br blc brc -> (bl br) (blc brc)")
+    )
+    vertical_spectrum = vertical_spectrum / np.sum(vertical_spectrum)
+    # Filter out zero eigenvalues to avoid log(0)
+    vertical_spectrum = vertical_spectrum[vertical_spectrum > 0]
+    vertical_entropy = -np.sum(np.log2(vertical_spectrum) * vertical_spectrum)
+    return vertical_entropy
+
+
+def calculate_entropy_cnot(
+    tensor: MatrixStack, L: LeftSplittingTensor, S: BlockDiagTensor, R: RightSplittingTensor
+):
+    """
+    Calculate the residual non-block entanglement entropy after-like entangement after an attempted decomposision into
+    block-diagonal form. This entanglement entropy will be zero for exact blocks.
+    Zero cnot entanglement corresponds to GHZ-like or Bell-pair between L and R, not
+    entangled with S. This is the entropy of rho_fast in https://arxiv.org/abs/2308.04291
+
+    Inputs:
+        tensor: MatrixStack: Complex[NDArray, "dPhys dVirt_L dVirt_R"]
+            The original tensor which has attempted to be decomposed into L S R
+            as tensor approx = einsum(L, S, R, "b L l, p b l r, b r R -> p L R")
+            dPhys indexes the matrix in the stack. Each matrix is a dVirt_L x dVirt_R dimensional.
+
+        L: LeftSplittingTensor: Complex[NDArray, "nBranches dVirt_L dSlow"]
+            The (unitary) splitting matrix decomposing the tensor into a block-diagonal form from
+            the left.
+
+        S: BlockDiagTensor: Complex[NDArray, "dPhys nBranches dSlow dSlow"]
+            The central block-diagonal stack of matrices, where dPhys indexes the matrix in the stack,
+            nBranches indexes which block in the block-diagonal structure, and each block is of
+            dimension dSlow x dSlow.
+
+        R: RightSplittingTensor: Complex[NDArray, "nBranches dSlow dVirt_R"]
+            The (unitary) splitting matrix decomposing the tensor into a block-diagonal form from
+            the right.
+
+    Output:
+        entropy:
+            The vertical entanglement entropy between the slow and fast degrees of freedom.
+            This is zero for Bell-like entanglement (but nonzero for GHZ or non-branch-like entanglement)
+    """
+    # Assume L and R are unitary.
+    #    L should be a unitary map from dVirt_L to nBranches x dSlow
+    #    R should be a unitary map from dVirt_R to nBranches x dSlow
+
+    L_mat = rearrange(L, "nBranches dVirt_L dSlow -> dVirt_L (nBranches dSlow)")
+    uL_mat = utils.unitize(L_mat)
+    uL = rearrange(
+        uL_mat, "dVirt_L (nBranches dSlow) -> nBranches dVirt_L dSlow", nBranches=L.shape[0]
+    )
+
+    R_mat = rearrange(R, "nBranches dSlow dVirt_R -> dVirt_R (nBranches dSlow)")
+    uR_mat = utils.unitize(R_mat)
+    uR = rearrange(
+        uR_mat, "dVirt_R (nBranches dSlow) -> nBranches dSlow dVirt_R", nBranches=R.shape[0]
+    )
+
+    # Compute the guess for he middle tensor
+    overlap = einsum(np.conj(uL), tensor, np.conj(uR), "bl L l,  p L R,  br r R  ->  bl br p l r")
+
+    # A CNOT is composed of an XOR tensor and a COPY tensor. see https://arxiv.org/pdf/1708.00006
+    xor_gate = np.zeros((2, 2, 2)) + 0.0j * np.zeros((2, 2, 2))
+    xor_gate[0, 0, 0] += 1.0
+    xor_gate[1, 1, 0] += 1.0
+    xor_gate[0, 1, 1] += 1.0
+    xor_gate[1, 0, 1] += 1.0
+
+    assert xor_gate[0, 1, 0] == xor_gate[1, 0, 0]
+    assert xor_gate[0, 0, 1] == xor_gate[1, 0, 0]
+
+    assert xor_gate[0, 1, 1] == xor_gate[1, 1, 0]
+    assert xor_gate[0, 1, 1] == xor_gate[1, 0, 1]
+
+    xor_bottom_right = einsum(overlap, xor_gate, "bl br p l r, bl br br_new -> bl br_new p l r")
+    xor_bottom_left = einsum(overlap, xor_gate, "bl br p l r, bl br bl_new -> bl_new br p l r")
+
+    rho_bottom_right = einsum(
+        xor_bottom_right, np.conj(xor_bottom_right), "bl br p l r, bl br_prime p l r -> br br_prime"
+    )
+    rho_bottom_left = einsum(
+        xor_bottom_left, np.conj(xor_bottom_left), "bl br p l r, bl_prime br p l r -> bl bl_prime"
+    )
+
+    spectrum_bottom_right = np.linalg.eigvalsh(rho_bottom_right)
+    spectrum_bottom_left = np.linalg.eigvalsh(rho_bottom_left)
+
+    spectrum_bottom_right = spectrum_bottom_right / np.sum(spectrum_bottom_right)
+    spectrum_bottom_left = spectrum_bottom_left / np.sum(spectrum_bottom_left)
+    # Filter out zero eigenvalues to avoid log(0)
+    spectrum_bottom_right = spectrum_bottom_right[spectrum_bottom_right > 0]
+    spectrum_bottom_left = spectrum_bottom_left[spectrum_bottom_left > 0]
+
+    entropy_bottom_right = -np.sum(np.log2(spectrum_bottom_right) * spectrum_bottom_right)
+    entropy_bottom_left = -np.sum(np.log2(spectrum_bottom_left) * spectrum_bottom_left)
+
+    return (entropy_bottom_right + entropy_bottom_left) / 2.0
+
+
+############################################################################################################
 # Combination function
 ############################################################################################################
 def branch_from_theta(
@@ -346,6 +508,8 @@ def branch_from_theta(
     ],
     n_steps_iterative=500,
     n_steps_graddesc=1000,
+    tolEntropy=None,
+    tolEntropy_kind: Literal["cnot", "vertical"] | None = "cnot",
 ) -> tuple[PurificationMatrixStack, dict]:
     if iterative_method is None or iterative_method == "None":
         assert graddesc_method is None or graddesc_method == "None", (
@@ -387,26 +551,38 @@ def branch_from_theta(
         "graddesc_global_reconstruction_split_non_interfering": graddesc_global_reconstruction_split_non_interfering,
     }
 
-    keep_classical = True
-    if graddesc_method == "rho_LM_MR_trace_norm_discard_classical_identical_blocks":
-        keep_classical = False
-    if graddesc_method is None and "discard_classical" in iterative_method:
-        keep_classical = False
     fn_graddesc = fn_dict_graddesc[graddesc_method]
 
-    norm_orig = einsum(theta_scrambled, np.conj(theta_scrambled), "p l r, p l r -> ")
     tensor = utils.make_square(theta_scrambled, 2)
 
     t1 = time.time()
     L, S, R, info = fn_iterative(tensor, n_steps=n_steps_iterative)
     t2 = time.time()
 
-    # # Normalize the purification
-    # theta = LSR_to_purification(L, S, R, keep_classical)
-    # norm = einsum(theta, np.conj(theta), 'b p l r, b p l r -> ')
-    # S /= np.sqrt(norm/norm_orig)
+    # Determine if the iterative method failed to find a good decomposition
+    if tolEntropy is not None and tolEntropy_kind is not None:
+        if tolEntropy_kind == "cnot":
+            entropy = calculate_entropy_cnot(tensor, L, S, R)
+        elif tolEntropy_kind == "vertical":
+            entropy = calculate_entropy_vertical(tensor, L, S, R)
+        else:
+            raise AssertionError(f"unknown tolEntropy_kind {tolEntropy_kind}")
 
-    theta_purified = fn_graddesc(tensor, L, S, R, n_steps=n_steps_graddesc)
+        info["entropy"] = entropy
+        info["tolEntropy_kind"] = tolEntropy_kind
+
+        if entropy > tolEntropy:
+            info["rejected"] = True
+            print(
+                "    Further optimization was rejected as initial optimization failed to find a good decomposition."
+            )
+            print(f"    entropy = {entropy} (tolEntropy = {tolEntropy})")
+            print(f"    tolEntropy_kind = {tolEntropy_kind}")
+
+    rejected = info.get("rejected"), False
+
+    # Only perform gradient descent steps if info["rejected"] == False
+    theta_purified = fn_graddesc(tensor, L, S, R, n_steps=(0 if rejected else n_steps_graddesc))
     t3 = time.time()
     return theta_purified, {"iterative_time": t2 - t1, "graddesc_time": t3 - t2, **info}
 
@@ -435,6 +611,8 @@ def branch(
     coarsegrain_size=2,
     n_steps_iterative=500,
     n_steps_graddesc=1000,
+    tolEntropy=None,
+    tolEntropy_kind: Literal["cnot", "vertical"] | None = "cnot",
 ) -> tuple[PurificationMatrixStack, dict]:
     if coarsegrain_from == "half":
         coarsegrain_from = int(psi.L / 2 - coarsegrain_size / 2)
@@ -452,4 +630,6 @@ def branch(
         graddesc_method,
         n_steps_iterative=n_steps_iterative,
         n_steps_graddesc=n_steps_graddesc,
+        tolEntropy=tolEntropy,
+        tolEntropy_kind=tolEntropy_kind,
     )

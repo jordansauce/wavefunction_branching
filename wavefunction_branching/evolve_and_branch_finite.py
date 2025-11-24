@@ -225,6 +225,8 @@ class BranchingMPSConfig:
     save_full_state: bool = False
     necessary_local_truncation_improvement_factor: float = 1.0
     necessary_global_truncation_improvement_factor: float = 1.0
+    tolEntropy: float | None = None
+    tolEntropy_kind: Literal["cnot", "vertical"] | None = "cnot"
 
 
 def check_canonical_form(psi):
@@ -540,7 +542,7 @@ class BranchingMPS:
         candidate_indices = np.arange(num_candidates)
 
         # --- Branch Sampling: Allocate grandchild budget using random_round ---
-        allocated_budgets = probabilistic_round_child_budget(max_children, branch_probs)
+        allocated_budgets = probabilistic_round_child_budget(self.max_children, branch_probs)
 
         keep_mask = allocated_budgets > 0
         survivor_indices = candidate_indices[keep_mask]
@@ -686,10 +688,10 @@ class BranchingMPS:
         else:
             print(f"{self.ID}Accepting the branch decomposition: ")
             print(
-                f"    local_trace_distance = {costFun_LM_MR_trace_distance:.2e} < truncation_only_comparison = {trace_distance_truncation_only_comparison:.2e}"
+                f"    local_trace_distance = {costFun_LM_MR_trace_distance:.2e} vs truncation_only_comparison = {trace_distance_truncation_only_comparison:.2e}"
             )
             print(
-                f"    global_trace_distance = {global_reconstruction_error_trace_distance:.2e} < truncation_only_comparison = {global_reconstruction_error_truncation_only_comparison:.2e}"
+                f"    global_trace_distance = {global_reconstruction_error_trace_distance:.2e} vs truncation_only_comparison = {global_reconstruction_error_truncation_only_comparison:.2e}"
             )
             self.last_attempted_branching_trunc_bond_dims_sites[coarsegrain_from] = None
             self.last_attempted_branching_trunc_trace_distance_sites[coarsegrain_from] = None
@@ -1571,6 +1573,8 @@ def main(
     necessary_local_truncation_improvement_factor=1.1,
     necessary_global_truncation_improvement_factor=1.1,
     seed=None,
+    tolEntropy=None,
+    tolEntropy_kind: Literal["cnot", "vertical"] | None = "cnot",
 ):
     print("Running main")
     print(f"Iterative method: {iterative_method}")
@@ -1655,6 +1659,8 @@ def main(
         save_full_state=save_full_state,
         necessary_local_truncation_improvement_factor=necessary_local_truncation_improvement_factor,
         necessary_global_truncation_improvement_factor=necessary_global_truncation_improvement_factor,
+        tolEntropy=tolEntropy,
+        tolEntropy_kind=tolEntropy_kind,
     )
 
     branch_function = partial(
@@ -1662,6 +1668,8 @@ def main(
         iterative_method=iterative_method,
         graddesc_method=graddesc_method,
         n_steps_graddesc=maxiter_heuristic,
+        tolEntropy=tolEntropy,
+        tolEntropy_kind=tolEntropy_kind,
     )
 
     print("\n\n\n\nBranching evolution:")
